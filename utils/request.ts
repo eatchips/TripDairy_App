@@ -10,7 +10,7 @@ interface ResponseData<T = any> {
 
 // 创建axios实例
 export const service: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:3001', // 基础URL
+  baseURL: 'http://192.168.1.108:3001', // 使用您电脑的实际IP地址，而不是localhost
   timeout: 10000, // 请求超时时间
 });
 
