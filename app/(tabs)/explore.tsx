@@ -1,14 +1,13 @@
-import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import React from "react";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { useUserStore } from '@/store/userStore';
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import { useUserStore } from "@/store/userStore";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -39,9 +38,9 @@ export default function ProfileScreen() {
           <ThemedText style={styles.loginText}>
             登录后才能查看您的个人信息
           </ThemedText>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.loginButton}
-            onPress={() => router.push('/login')}
+            onPress={() => router.push("/login")}
           >
             <ThemedText style={styles.loginButtonText}>去登录</ThemedText>
           </TouchableOpacity>
@@ -59,8 +58,8 @@ export default function ProfileScreen() {
       <ThemedView style={styles.profileContainer}>
         {/* 用户头像 */}
         <View style={styles.avatarContainer}>
-          <Image 
-            source={{ uri: user?.avatar || 'https://picsum.photos/200' }} 
+          <Image
+            source={{ uri: user?.avatar || "https://picsum.photos/200" }}
             style={styles.avatar}
             contentFit="cover"
           />
@@ -69,24 +68,40 @@ export default function ProfileScreen() {
         {/* 用户信息 */}
         <ThemedView style={styles.infoContainer}>
           <ThemedView style={styles.infoItem}>
-            <ThemedText type="defaultSemiBold" style={styles.infoLabel}>昵称</ThemedText>
-            <ThemedText style={styles.infoValue}>{user?.nickname || '未设置'}</ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.infoLabel}>
+              昵称
+            </ThemedText>
+            <ThemedText style={styles.infoValue}>
+              {user?.nickname || "未设置"}
+            </ThemedText>
           </ThemedView>
 
           <ThemedView style={styles.infoItem}>
-            <ThemedText type="defaultSemiBold" style={styles.infoLabel}>用户名</ThemedText>
-            <ThemedText style={styles.infoValue}>{user?.username || '未设置'}</ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.infoLabel}>
+              用户名
+            </ThemedText>
+            <ThemedText style={styles.infoValue}>
+              {user?.username || "未设置"}
+            </ThemedText>
           </ThemedView>
 
           <ThemedView style={styles.infoItem}>
-            <ThemedText type="defaultSemiBold" style={styles.infoLabel}>用户ID</ThemedText>
-            <ThemedText style={styles.infoValue}>{user?.id || '未设置'}</ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.infoLabel}>
+              用户ID
+            </ThemedText>
+            <ThemedText style={styles.infoValue}>
+              {user?.id || "未设置"}
+            </ThemedText>
           </ThemedView>
         </ThemedView>
 
         {/* 登出按钮 */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color="#fff" />
+          <IconSymbol
+            name="rectangle.portrait.and.arrow.right"
+            size={20}
+            color="#fff"
+          />
           <ThemedText style={styles.logoutButtonText}>退出登录</ThemedText>
         </TouchableOpacity>
       </ThemedView>
@@ -104,7 +119,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   profileContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: 16,
   },
   avatarContainer: {
@@ -114,60 +129,60 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: "#e0e0e0",
   },
   infoContainer: {
-    width: '100%',
+    width: "100%",
     marginBottom: 30,
   },
   infoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#e0e0e0",
   },
   infoLabel: {
     fontSize: 16,
   },
   infoValue: {
     fontSize: 16,
-    color: '#757575',
+    color: "#757575",
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F44336', // 红色登出按钮
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F44336", // 红色登出按钮
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
     marginTop: 20,
   },
   logoutButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
     marginLeft: 8,
   },
   loginPrompt: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 16,
   },
   loginText: {
     marginTop: 8,
     marginBottom: 24,
-    textAlign: 'center',
-    color: '#757575',
+    textAlign: "center",
+    color: "#757575",
   },
   loginButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: "#2196F3",
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
   },
   loginButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
 });
