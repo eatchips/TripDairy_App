@@ -21,7 +21,7 @@ const MAPPING = {
   "paperplane.fill": "send",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
-  // 添加缺失的图标映射
+  "gearshape.fill": "settings", // 新增齿轮图标映射
   "chevron.left": "chevron-left",
   "square.and.arrow.up": "share",
   "play.fill": "play-arrow",
