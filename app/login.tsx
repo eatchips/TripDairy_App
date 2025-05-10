@@ -40,7 +40,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const [isLogin, setIsLogin] = useState(true); // true为登录，false为注册
-  
+
   // 使用zustand store
   const { login, register } = useUserStore();
 
@@ -87,17 +87,30 @@ export default function LoginScreen() {
     }
 
     const success = await login(loginUsername, loginPassword);
-    
+
     if (success) {
       // 登录成功
       Alert.alert("成功", "登录成功", [
-        { text: "确定", onPress: () => router.back() },
+        {
+          text: "确定",
+          onPress: () => {
+            // 如果你可以确定是否有页面可以返回
+            // 例如，通过检查导航状态
+            const canGoBack = router.canGoBack();
+            if (canGoBack) {
+              router.back();
+            } else {
+              router.replace("/(tabs)");
+            }
+          },
+        },
       ]);
     } else {
       Alert.alert("错误", "用户名或密码错误");
     }
   };
 
+  // 处理注册
   // 处理注册
   const handleRegister = async () => {
     // 表单验证
@@ -115,39 +128,34 @@ export default function LoginScreen() {
       return;
     }
 
-    if (isUsernameExists(registerUsername)) {
-      Alert.alert("错误", "用户名已存在");
-      return;
-    }
-
-    if (isNicknameExists(nickname)) {
-      Alert.alert("错误", "昵称已存在");
-      return;
-    }
-
-    // 注册成功，这里应该将用户信息保存到数据库
-    // 模拟注册成功
+    // 移除本地验证，直接调用API进行注册
+    // 准备注册数据
     const userData = {
       username: registerUsername,
       password: registerPassword,
       nickname: nickname,
-      avatar: avatar || 'https://randomuser.me/api/portraits/lego/1.jpg' // 默认头像
+      avatar: avatar || "https://randomuser.me/api/portraits/lego/1.jpg", // 默认头像
     };
-    
-    const success = await register(userData);
-    
-    if (success) {
-      Alert.alert("成功", "注册成功，请登录", [
-        {
-          text: "确定",
-          onPress: () => {
-            setIsLogin(true);
-            setLoginUsername(registerUsername);
-            setLoginPassword("");
+
+    try {
+      const success = await register(userData);
+
+      if (success) {
+        Alert.alert("成功", "注册成功，请登录", [
+          {
+            text: "确定",
+            onPress: () => {
+              setIsLogin(true);
+              setLoginUsername(registerUsername);
+              setLoginPassword("");
+            },
           },
-        },
-      ]);
-    } else {
+        ]);
+      } else {
+        Alert.alert("错误", "注册失败，用户名或昵称可能已存在");
+      }
+    } catch (error) {
+      console.error("注册过程中出错:", error);
       Alert.alert("错误", "注册失败，请稍后再试");
     }
   };
