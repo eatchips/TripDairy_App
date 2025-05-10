@@ -18,11 +18,11 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useUserStore } from "@/store/userStore";
 // 导入API
 import { deleteTravelNote, getMyPublish } from "@/api/api";
+import formatDateTime from "@/utils/formatDateTime";
 
 // 状态标签组件
 function StatusBadge(props: { status: string }) {
   const { status } = props;
-  const colorScheme = useColorScheme();
 
   let backgroundColor, textColor, text;
 
@@ -76,18 +76,19 @@ export default function MyTripsScreen() {
     setError("");
 
     try {
-      const response = await getMyPublish(user.id);
+      const response: any = await getMyPublish(user.id);
+      console.log("response:", response);
       if (response) {
         // 根据API返回的数据结构进行适配
-        const formattedTrips = response.map((item) => ({
-          id: item._id || item.id,
+        const formattedTrips = response.map((item: any) => ({
+          id: item.id,
           title: item.title,
           coverImage:
             item.imgList && item.imgList.length > 0
               ? item.imgList[0].replace("localhost", "192.168.1.108")
               : "https://picsum.photos/id/1011/800/600",
           status: item.state !== undefined ? String(item.state) : "pending", // 转换状态为字符串
-          createdAt: item.date || new Date().toISOString().split("T")[0],
+          createdAt: formatDateTime(item.publish),
           rejectReason: item.rejectReason,
         }));
         setMyTrips(formattedTrips);
@@ -141,54 +142,54 @@ export default function MyTripsScreen() {
   };
 
   // 渲染游记项
-  const renderTripItem = ({ item }) => (
-    <ThemedView style={styles.tripItem}>
-      <Image source={{ uri: item.coverImage }} style={styles.tripImage} />
-      <ThemedView style={styles.tripContent}>
-        <View style={styles.tripHeader}>
-          <ThemedText type="defaultSemiBold" style={styles.tripTitle}>
-            {item.title}
-          </ThemedText>
-          <StatusBadge status={item.status} />
-        </View>
-        <ThemedText style={styles.tripDate}>
-          创建于: {item.createdAt}
-        </ThemedText>
+  // const renderTripItem = ({ item }) => (
+  //   <ThemedView style={styles.tripItem}>
+  //     <Image source={{ uri: item.coverImage }} style={styles.tripImage} />
+  //     <ThemedView style={styles.tripContent}>
+  //       <View style={styles.tripHeader}>
+  //         <ThemedText type="defaultSemiBold" style={styles.tripTitle}>
+  //           {item.title}
+  //         </ThemedText>
+  //         <StatusBadge status={item.status} />
+  //       </View>
+  //       <ThemedText style={styles.tripDate}>
+  //         创建于: {item.createdAt}
+  //       </ThemedText>
 
-        {(item.status === "rejected" || item.status === "2") &&
-          item.rejectReason && (
-            <ThemedView style={styles.rejectReasonContainer}>
-              <ThemedText style={styles.rejectReason}>
-                拒绝原因: {item.rejectReason}
-              </ThemedText>
-            </ThemedView>
-          )}
+  //       {(item.status === "rejected" || item.status === "2") &&
+  //         item.rejectReason && (
+  //           <ThemedView style={styles.rejectReasonContainer}>
+  //             <ThemedText style={styles.rejectReason}>
+  //               拒绝原因: {item.rejectReason}
+  //             </ThemedText>
+  //           </ThemedView>
+  //         )}
 
-        <View style={styles.actionButtons}>
-          {(item.status === "pending" ||
-            item.status === "rejected" ||
-            item.status === "0" ||
-            item.status === "2") && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.editButton]}
-              onPress={() => handleEdit(item)}
-            >
-              <IconSymbol name="pencil" size={16} color="#fff" />
-              <ThemedText style={styles.buttonText}>编辑</ThemedText>
-            </TouchableOpacity>
-          )}
+  //       <View style={styles.actionButtons}>
+  //         {(item.status === "pending" ||
+  //           item.status === "rejected" ||
+  //           item.status === "0" ||
+  //           item.status === "2") && (
+  //           <TouchableOpacity
+  //             style={[styles.actionButton, styles.editButton]}
+  //             onPress={() => handleEdit(item)}
+  //           >
+  //             <IconSymbol name="pencil" size={16} color="#fff" />
+  //             <ThemedText style={styles.buttonText}>编辑</ThemedText>
+  //           </TouchableOpacity>
+  //         )}
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDelete(item.id)}
-          >
-            <IconSymbol name="trash" size={16} color="#fff" />
-            <ThemedText style={styles.buttonText}>删除</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </ThemedView>
-    </ThemedView>
-  );
+  //         <TouchableOpacity
+  //           style={[styles.actionButton, styles.deleteButton]}
+  //           onPress={() => handleDelete(item.id)}
+  //         >
+  //           <IconSymbol name="trash" size={16} color="#fff" />
+  //           <ThemedText style={styles.buttonText}>删除</ThemedText>
+  //         </TouchableOpacity>
+  //       </View>
+  //     </ThemedView>
+  //   </ThemedView>
+  // );
 
   // 如果未登录，显示登录提示
   if (!isLoggedIn) {
@@ -247,55 +248,58 @@ export default function MyTripsScreen() {
         <FlatList
           data={myTrips}
           renderItem={({ item }) => (
-            <ThemedView style={styles.tripItem}>
-              <Image
-                source={{ uri: item.coverImage }}
-                style={styles.tripImage}
-              />
-              <ThemedView style={styles.tripContent}>
-                <View style={styles.tripHeader}>
-                  <ThemedText type="defaultSemiBold" style={styles.tripTitle}>
-                    {item.title}
+            console.log("item:", item),
+            (
+              <ThemedView style={styles.tripItem} key={`trip-${item.id}`}>
+                <Image
+                  source={{ uri: item.coverImage }}
+                  style={styles.tripImage}
+                />
+                <ThemedView style={styles.tripContent}>
+                  <View style={styles.tripHeader}>
+                    <ThemedText type="defaultSemiBold" style={styles.tripTitle}>
+                      {item.title}
+                    </ThemedText>
+                    <StatusBadge status={item.status} />
+                  </View>
+                  <ThemedText style={styles.tripDate}>
+                    创建于: {item.createdAt}
                   </ThemedText>
-                  <StatusBadge status={item.status} />
-                </View>
-                <ThemedText style={styles.tripDate}>
-                  创建于: {item.createdAt}
-                </ThemedText>
 
-                {(item.status === "rejected" || item.status === "2") &&
-                  item.rejectReason && (
-                    <ThemedView style={styles.rejectReasonContainer}>
-                      <ThemedText style={styles.rejectReason}>
-                        拒绝原因: {item.rejectReason}
-                      </ThemedText>
-                    </ThemedView>
-                  )}
+                  {(item.status === "rejected" || item.status === "2") &&
+                    item.rejectReason && (
+                      <ThemedView style={styles.rejectReasonContainer}>
+                        <ThemedText style={styles.rejectReason}>
+                          拒绝原因: {item.rejectReason}
+                        </ThemedText>
+                      </ThemedView>
+                    )}
 
-                <View style={styles.actionButtons}>
-                  {(item.status === "pending" ||
-                    item.status === "rejected" ||
-                    item.status === "0" ||
-                    item.status === "2") && (
+                  <View style={styles.actionButtons}>
+                    {(item.status === "pending" ||
+                      item.status === "rejected" ||
+                      item.status === "0" ||
+                      item.status === "2") && (
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.editButton]}
+                        onPress={() => handleEdit(item)}
+                      >
+                        <IconSymbol name="pencil" size={16} color="#fff" />
+                        <ThemedText style={styles.buttonText}>编辑</ThemedText>
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
-                      style={[styles.actionButton, styles.editButton]}
-                      onPress={() => handleEdit(item)}
+                      style={[styles.actionButton, styles.deleteButton]}
+                      onPress={() => handleDelete(item.id)}
                     >
-                      <IconSymbol name="pencil" size={16} color="#fff" />
-                      <ThemedText style={styles.buttonText}>编辑</ThemedText>
+                      <IconSymbol name="trash" size={16} color="#fff" />
+                      <ThemedText style={styles.buttonText}>删除</ThemedText>
                     </TouchableOpacity>
-                  )}
-
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.deleteButton]}
-                    onPress={() => handleDelete(item.id)}
-                  >
-                    <IconSymbol name="trash" size={16} color="#fff" />
-                    <ThemedText style={styles.buttonText}>删除</ThemedText>
-                  </TouchableOpacity>
-                </View>
+                  </View>
+                </ThemedView>
               </ThemedView>
-            </ThemedView>
+            )
           )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
@@ -457,14 +461,16 @@ const styles = StyleSheet.create({
     color: "#757575",
   },
   loginButton: {
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: "#0a7ea4",
+    borderRadius: 8,
+    padding: 16,
+    width: "80%",
+    alignItems: "center",
   },
   loginButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: "bold",
   },
   loadingContainer: {
     flex: 1,

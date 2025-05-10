@@ -176,13 +176,15 @@ const styles = StyleSheet.create({
     color: "#757575",
   },
   loginButton: {
-    backgroundColor: "#2196F3",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: "#0a7ea4",
+    borderRadius: 8,
+    padding: 16,
+    width: "80%",
+    alignItems: "center",
   },
   loginButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });

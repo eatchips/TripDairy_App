@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   searchButton: {
-    backgroundColor: "#007AFF", // iOS 风格的蓝色
+    backgroundColor: "#0a7ea4",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,

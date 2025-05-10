@@ -68,7 +68,7 @@ interface Trip {
   id: string;
   title: string;
   content: string;
-  imgList: [string[]];
+  imgList: string[];
   video: string | null;
   publishTime: string;
   userInfo: {
@@ -144,7 +144,10 @@ export default function TripDetailScreen() {
   }
   if (trip.imgList) {
     trip.imgList.forEach((image) => {
-      carouselItems.push({ type: "image", uri: image });
+      carouselItems.push({
+        type: "image",
+        uri: image.replace("localhost", "192.168.1.108"),
+      });
     });
   }
   const imageViewImages = trip.imgList
