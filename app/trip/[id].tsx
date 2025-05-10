@@ -20,6 +20,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
+import formatDateTime from "@/utils/formatDateTime";
 // 移除暗色主题判断导入
 // import { useColorScheme } from "@/hooks/useColorScheme";
 
@@ -282,7 +283,9 @@ export default function TripDetailScreen() {
             <ThemedText style={styles.authorName}>
               {trip.userInfo?.username}
             </ThemedText>
-            <ThemedText style={styles.tripDate}>{trip.publishTime}</ThemedText>
+            <ThemedText style={styles.tripDate}>
+              {formatDateTime(trip.publishTime)}
+            </ThemedText>
           </View>
 
           <ThemedText style={styles.tripContent}>{trip.content}</ThemedText>
