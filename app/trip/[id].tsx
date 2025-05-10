@@ -64,6 +64,20 @@ const TRIP_DETAILS = {
   },
 };
 
+interface Trip {
+  id: string;
+  title: string;
+  content: string;
+  imgList: [string[]];
+  video: string | null;
+  publishTime: string;
+  userInfo: {
+    _id: string;
+    username: string;
+    avatar: string;
+  };
+}
+
 // 导入API
 
 export default function TripDetailScreen() {
@@ -72,7 +86,7 @@ export default function TripDetailScreen() {
   const tripId = params.id as string;
   // 移除暗色主题判断
   // const colorScheme = useColorScheme();
-  const [trip, setTrip] = useState(null);
+  const [trip, setTrip] = useState<Trip | null>(null);
   const [isFullscreenVideo, setIsFullscreenVideo] = useState(false);
   const [isImageViewVisible, setIsImageViewVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -92,8 +106,9 @@ export default function TripDetailScreen() {
 
   const fetchTripDetails = async (id: any) => {
     try {
-      const response = await getTravelNoteDetail(id);
-      console.log("游记详情:", response); // 添加日志
+      const response: any = await getTravelNoteDetail(id);
+      console.log("游记:", response);
+      setTrip(response);
     } catch (error) {
       console.error("获取游记详情失败:", error);
       Alert.alert("错误", "获取游记详情失败");
@@ -123,20 +138,22 @@ export default function TripDetailScreen() {
 
   // 准备轮播图数据
   const carouselItems = [];
+  console.log("轮播图处理前的", trip.imgList);
   if (trip.video) {
     carouselItems.push({ type: "video", uri: trip.video });
   }
-  trip.images[0].forEach((image) => {
-    carouselItems.push({ type: "image", uri: image });
-  });
-
-  // 准备图片查看器数据 - 彻底修复URI格式问题
-  const imageViewImages = trip.images[0].map((uri) => ({
-    uri: uri.trim().replace(/`/g, ""), // 移除所有反引号和多余空格
-  }));
+  if (trip.imgList) {
+    trip.imgList.forEach((image) => {
+      carouselItems.push({ type: "image", uri: image });
+    });
+  }
+  const imageViewImages = trip.imgList
+    ? trip.imgList.map((uri) => ({ uri }))
+    : [];
 
   // 调试输出
   console.log("图片数据:", imageViewImages);
+  console.log("轮播图处理后的数据:", carouselItems);
 
   // 处理分享
   const handleShare = async () => {
@@ -146,7 +163,7 @@ export default function TripDetailScreen() {
         message: `查看我发现的精彩游记：${trip.title}`,
         url: `https://tripdiary.example.com/trip/${trip.id}`,
       });
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert("分享失败", error.message);
     }
   };
@@ -256,13 +273,13 @@ export default function TripDetailScreen() {
 
           <View style={styles.authorInfo}>
             <Image
-              source={{ uri: trip.author.avatar }}
+              source={{ uri: trip.userInfo?.avatar }}
               style={styles.authorAvatar}
             />
             <ThemedText style={styles.authorName}>
-              {trip.author.name}
+              {trip.userInfo?.username}
             </ThemedText>
-            <ThemedText style={styles.tripDate}>{trip.createdAt}</ThemedText>
+            <ThemedText style={styles.tripDate}>{trip.publishTime}</ThemedText>
           </View>
 
           <ThemedText style={styles.tripContent}>{trip.content}</ThemedText>

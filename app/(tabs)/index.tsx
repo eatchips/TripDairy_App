@@ -67,10 +67,7 @@ function TripCard({ trip, onPress }: TripCardProps) {
     if (trip.imgList && trip.imgList.length > 0) {
       try {
         console.log("处理图片URL");
-        const imageUrl = trip.imgList[0][0].replace(
-          "localhost",
-          "192.168.1.108"
-        );
+        const imageUrl = trip.imgList[0].replace("localhost", "192.168.1.108");
         setCoverImageUrl(imageUrl);
       } catch (error) {
         console.error("处理图片URL时出错:", error);
@@ -192,7 +189,7 @@ export default function TabOneScreen() {
           <TripCard
             trip={item}
             onPress={() => {
-              console.log('跳转到游记详情，ID:', item._id); // 添加日志
+              console.log("跳转到游记详情，ID:", item._id); // 添加日志
               router.push(`/trip/${item._id}`);
             }}
           />
