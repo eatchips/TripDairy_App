@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   StyleSheet,
@@ -15,51 +16,31 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useUserStore } from "@/store/userStore";
-
-// 模拟我的游记数据
-const MY_TRIPS = [
-  {
-    id: "1",
-    title: "三亚海滩度假",
-    coverImage: "https://picsum.photos/id/1011/800/600",
-    status: "approved", // 已通过
-    createdAt: "2023-10-15",
-  },
-  {
-    id: "2",
-    title: "重庆洪崖洞夜景",
-    coverImage: "https://picsum.photos/id/1015/800/600",
-    status: "pending", // 待审核
-    createdAt: "2023-10-20",
-  },
-  {
-    id: "3",
-    title: "西安兵马俑一日游",
-    coverImage: "https://picsum.photos/id/1019/800/600",
-    status: "rejected", // 未通过
-    rejectReason: "内容不符合社区规范，请修改后重新提交",
-    createdAt: "2023-10-25",
-  },
-];
+// 导入API
+import { deleteTravelNote, getMyPublish } from "@/api/api";
 
 // 状态标签组件
-function StatusBadge({ status: any }) {
+function StatusBadge(props: { status: string }) {
+  const { status } = props;
   const colorScheme = useColorScheme();
 
   let backgroundColor, textColor, text;
 
   switch (status) {
     case "approved":
+    case "1": // 后端可能返回数字状态码
       backgroundColor = "#e6f7e6";
       textColor = "#2e8b57";
       text = "已通过";
       break;
     case "pending":
+    case "0": // 待审核
       backgroundColor = "#fff8e6";
       textColor = "#f5a623";
       text = "审核中";
       break;
     case "rejected":
+    case "2": // 未通过
       backgroundColor = "#ffebee";
       textColor = "#d32f2f";
       text = "未通过";
@@ -80,16 +61,57 @@ function StatusBadge({ status: any }) {
 export default function MyTripsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const [myTrips, setMyTrips] = useState(MY_TRIPS);
+  const [myTrips, setMyTrips] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // 使用zustand store获取登录状态
-  const { isLoggedIn, user } = useUserStore();
+  const { isLoggedIn, user, logout } = useUserStore();
 
-  // 不再需要单独的登录状态检查，直接使用store中的状态
+  // 获取我的游记列表
+  const fetchMyTrips = async () => {
+    if (!isLoggedIn || !user || !user.id) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await getMyPublish(user.id);
+      if (response) {
+        // 根据API返回的数据结构进行适配
+        const formattedTrips = response.map((item) => ({
+          id: item._id || item.id,
+          title: item.title,
+          coverImage:
+            item.imgList && item.imgList.length > 0
+              ? item.imgList[0][0].replace("localhost", "192.168.1.108")
+              : "https://picsum.photos/id/1011/800/600",
+          status: item.state !== undefined ? String(item.state) : "pending", // 转换状态为字符串
+          createdAt: item.date || new Date().toISOString().split("T")[0],
+          rejectReason: item.rejectReason,
+        }));
+        setMyTrips(formattedTrips);
+      } else {
+        setMyTrips([]);
+      }
+    } catch (err) {
+      console.error("获取游记列表失败:", err);
+      setError("获取游记列表失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 组件挂载和用户登录状态变化时获取数据
+  useEffect(() => {
+    if (isLoggedIn && user) {
+      fetchMyTrips();
+    }
+  }, [isLoggedIn, user]);
 
   // 处理编辑游记
   const handleEdit = (trip: any) => {
-    if (trip.status === "approved") {
+    if (trip.status === "approved" || trip.status === "1") {
       Alert.alert("提示", "已通过审核的游记不可编辑");
       return;
     }
@@ -97,15 +119,22 @@ export default function MyTripsScreen() {
   };
 
   // 处理删除游记
-  const handleDelete = (tripId: any) => {
+  const handleDelete = (tripId: string) => {
     Alert.alert("确认删除", "确定要删除这篇游记吗？此操作不可撤销。", [
       { text: "取消", style: "cancel" },
       {
         text: "删除",
         style: "destructive",
-        onPress: () => {
-          // 模拟删除操作
-          setMyTrips(myTrips.filter((trip) => trip.id !== tripId));
+        onPress: async () => {
+          try {
+            await deleteTravelNote(tripId);
+            // 删除成功后刷新列表
+            fetchMyTrips();
+            Alert.alert("成功", "游记已删除");
+          } catch (err) {
+            console.error("删除游记失败:", err);
+            Alert.alert("错误", "删除游记失败，请稍后重试");
+          }
         },
       },
     ]);
@@ -126,16 +155,20 @@ export default function MyTripsScreen() {
           创建于: {item.createdAt}
         </ThemedText>
 
-        {item.status === "rejected" && (
-          <ThemedView style={styles.rejectReasonContainer}>
-            <ThemedText style={styles.rejectReason}>
-              拒绝原因: {item.rejectReason}
-            </ThemedText>
-          </ThemedView>
-        )}
+        {(item.status === "rejected" || item.status === "2") &&
+          item.rejectReason && (
+            <ThemedView style={styles.rejectReasonContainer}>
+              <ThemedText style={styles.rejectReason}>
+                拒绝原因: {item.rejectReason}
+              </ThemedText>
+            </ThemedView>
+          )}
 
         <View style={styles.actionButtons}>
-          {(item.status === "pending" || item.status === "rejected") && (
+          {(item.status === "pending" ||
+            item.status === "rejected" ||
+            item.status === "0" ||
+            item.status === "2") && (
             <TouchableOpacity
               style={[styles.actionButton, styles.editButton]}
               onPress={() => handleEdit(item)}
@@ -180,18 +213,90 @@ export default function MyTripsScreen() {
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
         <ThemedText type="title">我的游记</ThemedText>
-        <Link href="/publish" asChild>
-          <TouchableOpacity style={styles.addButton}>
-            <IconSymbol name="plus" size={20} color="#fff" />
-            <ThemedText style={styles.addButtonText}>发布游记</ThemedText>
-          </TouchableOpacity>
-        </Link>
+        <View style={styles.headerButtons}>
+          <Link href="/publish" asChild>
+            <TouchableOpacity style={styles.addButton}>
+              <IconSymbol name="plus" size={20} color="#fff" />
+              <ThemedText style={styles.addButtonText}>发布游记</ThemedText>
+            </TouchableOpacity>
+          </Link>
+        </View>
       </ThemedView>
 
-      {myTrips.length > 0 ? (
+      {loading ? (
+        <ThemedView style={styles.loadingContainer}>
+          <ActivityIndicator
+            size="large"
+            color={Colors[colorScheme ?? "light"].tint}
+          />
+          <ThemedText style={styles.loadingText}>加载中...</ThemedText>
+        </ThemedView>
+      ) : error ? (
+        <ThemedView style={styles.errorContainer}>
+          <IconSymbol
+            name="exclamationmark.triangle"
+            size={60}
+            color={Colors[colorScheme ?? "light"].tabIconDefault}
+          />
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchMyTrips}>
+            <ThemedText style={styles.retryButtonText}>重试</ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+      ) : myTrips.length > 0 ? (
         <FlatList
           data={myTrips}
-          renderItem={renderTripItem}
+          renderItem={({ item }) => (
+            <ThemedView style={styles.tripItem}>
+              <Image
+                source={{ uri: item.coverImage }}
+                style={styles.tripImage}
+              />
+              <ThemedView style={styles.tripContent}>
+                <View style={styles.tripHeader}>
+                  <ThemedText type="defaultSemiBold" style={styles.tripTitle}>
+                    {item.title}
+                  </ThemedText>
+                  <StatusBadge status={item.status} />
+                </View>
+                <ThemedText style={styles.tripDate}>
+                  创建于: {item.createdAt}
+                </ThemedText>
+
+                {(item.status === "rejected" || item.status === "2") &&
+                  item.rejectReason && (
+                    <ThemedView style={styles.rejectReasonContainer}>
+                      <ThemedText style={styles.rejectReason}>
+                        拒绝原因: {item.rejectReason}
+                      </ThemedText>
+                    </ThemedView>
+                  )}
+
+                <View style={styles.actionButtons}>
+                  {(item.status === "pending" ||
+                    item.status === "rejected" ||
+                    item.status === "0" ||
+                    item.status === "2") && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.editButton]}
+                      onPress={() => handleEdit(item)}
+                    >
+                      <IconSymbol name="pencil" size={16} color="#fff" />
+                      <ThemedText style={styles.buttonText}>编辑</ThemedText>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDelete(item.id)}
+                  >
+                    <IconSymbol name="trash" size={16} color="#fff" />
+                    <ThemedText style={styles.buttonText}>删除</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              </ThemedView>
+            </ThemedView>
+          )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
         />
@@ -216,6 +321,7 @@ export default function MyTripsScreen() {
   );
 }
 
+// 在样式中添加新的样式
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -359,5 +465,54 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: "#fff",
     fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#757575",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  errorText: {
+    marginTop: 16,
+    marginBottom: 24,
+    fontSize: 16,
+    color: "#d32f2f",
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: "#2196F3",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F44336",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 8,
+  },
+  logoutButtonText: {
+    color: "#fff",
+    marginLeft: 4,
+  },
+  headerButtons: {
+    flexDirection: "row",
   },
 });
