@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 
+import { publishTravelNote, uploadImg, uploadVideo } from "@/api/api";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -51,10 +52,12 @@ const MY_TRIPS = [
   },
 ];
 
+// 在组件内部添加状态和API调用
 export default function PublishScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const tripId = params.id as string;
+  const { id } = params;
   const colorScheme = useColorScheme();
 
   // 使用zustand store获取登录状态
@@ -67,8 +70,7 @@ export default function PublishScreen() {
   const [video, setVideo] = useState<string | null>(null);
   const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-
-  // 不再需要检查登录状态的useEffect
+  const [uploading, setUploading] = useState(false);
 
   // 如果是编辑模式，加载现有游记数据
   useEffect(() => {
@@ -96,6 +98,55 @@ export default function PublishScreen() {
       setVideoThumbnail(uri);
     } catch (e) {
       console.warn("无法生成视频缩略图:", e);
+    }
+  };
+
+  // 上传图片
+  const handleImageUpload = async (imageUri: string) => {
+    if (!imageUri) return null;
+
+    const formData = new FormData();
+    const filename = imageUri.split("/").pop();
+    const match = /\.(\w+)$/.exec(filename as string);
+    const type = match ? `image/${match[1]}` : "image";
+
+    formData.append("file", {
+      uri: imageUri,
+      name: filename,
+      type,
+    } as any);
+
+    try {
+      const response = await uploadImg(formData);
+      console.log("上传图片成功:", response);
+      return response; // 返回上传后的图片URL
+    } catch (error) {
+      console.error("上传图片失败:", error);
+      throw error;
+    }
+  };
+
+  // 上传视频
+  const handleVideoUpload = async (videoUri: string) => {
+    if (!videoUri) return null;
+
+    const formData = new FormData();
+    const filename = videoUri.split("/").pop();
+    const match = /\.(\w+)$/.exec(filename as string);
+    const type = match ? `video/${match[1]}` : "video/mp4";
+
+    formData.append("file", {
+      uri: videoUri,
+      name: filename,
+      type,
+    } as any);
+
+    try {
+      const response = await uploadVideo(formData);
+      return response.data.url; // 返回上传后的视频URL
+    } catch (error) {
+      console.error("上传视频失败:", error);
+      throw error;
     }
   };
 
@@ -172,18 +223,64 @@ export default function PublishScreen() {
     return true;
   };
 
-  // 提交表单
-  const handleSubmit = () => {
+  // 发布游记
+  const handlePublish = async () => {
+    if (!isLoggedIn || !user) {
+      Alert.alert("提示", "请先登录");
+      return;
+    }
+
     if (!validateForm()) return;
 
-    // 这里应该是实际的提交逻辑，包括上传图片和视频
-    // 暂时只是模拟成功
-    Alert.alert("成功", isEditing ? "游记更新成功" : "游记发布成功", [
-      {
-        text: "确定",
-        onPress: () => router.push("/mytrips"),
-      },
-    ]);
+    setUploading(true);
+
+    try {
+      // 上传图片
+      const uploadedImages = await Promise.all(
+        images.map((img) => handleImageUpload(img))
+      );
+
+      // 上传视频（如果有）
+      let videoUrl = null;
+      if (video) {
+        videoUrl = await handleVideoUpload(video);
+      }
+
+      // 发布游记
+      const travelNoteData = {
+        id: id, // 如果是编辑模式，会有id
+        title,
+        content,
+        imgList: uploadedImages.filter(Boolean),
+        openid: user.id,
+        videoUrl,
+      };
+
+      await publishTravelNote(travelNoteData as any);
+
+      // 清空所有表单内容
+      setTitle("");
+      setContent("");
+      setImages([]);
+      setVideo(null);
+      setVideoThumbnail(null);
+      setIsEditing(false);
+
+      Alert.alert("成功", "游记发布成功，等待审核", [
+        { text: "确定", onPress: () => router.back() },
+      ]);
+    } catch (error) {
+      console.error("发布游记失败:", error);
+      Alert.alert("错误", "发布失败，请稍后重试");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // 提交表单 - 整合了模拟提交和实际API提交
+  const handleSubmit = () => {
+    // 使用实际API提交
+    handlePublish();
   };
 
   // 如果未登录，显示登录提示
@@ -332,9 +429,13 @@ export default function PublishScreen() {
         </ThemedView>
 
         {/* 提交按钮 */}
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={handleSubmit}
+          disabled={uploading}
+        >
           <ThemedText style={styles.submitButtonText}>
-            {isEditing ? "更新游记" : "发布游记"}
+            {uploading ? "上传中..." : isEditing ? "更新游记" : "发布游记"}
           </ThemedText>
         </TouchableOpacity>
       </ScrollView>

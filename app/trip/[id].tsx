@@ -1,3 +1,4 @@
+import { getTravelNoteDetail } from "@/api/api";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -63,6 +64,8 @@ const TRIP_DETAILS = {
   },
 };
 
+// 导入API
+
 export default function TripDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -79,13 +82,24 @@ export default function TripDetailScreen() {
 
   // 加载游记详情
   useEffect(() => {
-    if (tripId && TRIP_DETAILS[tripId]) {
-      setTrip(TRIP_DETAILS[tripId]);
+    if (tripId) {
+      fetchTripDetails(tripId);
     } else {
       Alert.alert("错误", "未找到游记详情");
       router.back();
     }
   }, [tripId]);
+
+  const fetchTripDetails = async (id: any) => {
+    try {
+      const response = await getTravelNoteDetail(id);
+      console.log("游记详情:", response); // 添加日志
+    } catch (error) {
+      console.error("获取游记详情失败:", error);
+      Alert.alert("错误", "获取游记详情失败");
+      router.back();
+    }
+  };
 
   // 创建视频播放器 - 无条件调用Hook
   // 即使trip.video为null，也要调用Hook，只是传入空字符串
@@ -112,12 +126,12 @@ export default function TripDetailScreen() {
   if (trip.video) {
     carouselItems.push({ type: "video", uri: trip.video });
   }
-  trip.images.forEach((image) => {
+  trip.images[0].forEach((image) => {
     carouselItems.push({ type: "image", uri: image });
   });
 
   // 准备图片查看器数据 - 彻底修复URI格式问题
-  const imageViewImages = trip.images.map((uri) => ({
+  const imageViewImages = trip.images[0].map((uri) => ({
     uri: uri.trim().replace(/`/g, ""), // 移除所有反引号和多余空格
   }));
 

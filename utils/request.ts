@@ -14,15 +14,18 @@ export const service: AxiosInstance = axios.create({
   timeout: 10000, // 请求超时时间
 });
 
+// 修改请求拦截器，添加token
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 // 请求拦截器
 service.interceptors.request.use(
-  (config: InternalAxiosRequestConfig<any>): InternalAxiosRequestConfig<any> => {
+  async (config: InternalAxiosRequestConfig<any>): Promise<InternalAxiosRequestConfig<any>> => {
     // 在发送请求之前做些什么，例如添加token
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers = config.headers || {};
-    //   config.headers['Authorization'] = `Bearer ${token}`;
-    // }
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
     return config;
   },
   (error: any) => {

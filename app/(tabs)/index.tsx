@@ -1,11 +1,11 @@
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import {
   FlatList,
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  useColorScheme,
   View,
 } from "react-native";
 
@@ -13,7 +13,11 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
+
+// 在文件顶部导入API
+import { getTravelNotes, searchTravelNotes } from "@/api/api";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
 
 // 模拟游记数据
 const MOCK_TRIPS = [
@@ -42,12 +46,12 @@ const MOCK_TRIPS = [
 // 游记卡片组件
 interface TripCardProps {
   trip: {
-    id: string;
+    _id: string;
     title: string;
-    coverImage: string;
-    author: {
-      id: string;
-      name: string;
+    imgList: string[];
+    userInfo: {
+      _id: string;
+      username: string;
       avatar: string;
     };
   };
@@ -55,58 +59,107 @@ interface TripCardProps {
 }
 
 function TripCard({ trip, onPress }: TripCardProps) {
+  const [imageReady, setImageReady] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 检查imgList是否存在且有元素
+    if (trip.imgList && trip.imgList.length > 0) {
+      try {
+        console.log("处理图片URL");
+        const imageUrl = trip.imgList[0][0].replace(
+          "localhost",
+          "192.168.1.108"
+        );
+        setCoverImageUrl(imageUrl);
+      } catch (error) {
+        console.error("处理图片URL时出错:", error);
+        setCoverImageUrl(null);
+      }
+    }
+  }, [trip.imgList]);
+
+  const handleImageLoad = () => {
+    setImageReady(true);
+  };
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
-      <Image source={{ uri: trip.coverImage }} style={styles.cardImage} />
+      {coverImageUrl ? (
+        <Image
+          source={{ uri: coverImageUrl }}
+          style={styles.cardImage}
+          onLoad={handleImageLoad}
+        />
+      ) : null}
       <ThemedText type="defaultSemiBold" style={styles.cardTitle}>
         {trip.title}
       </ThemedText>
       <View style={styles.authorContainer}>
-        <Image source={{ uri: trip.author.avatar }} style={styles.avatar} />
-        <ThemedText>{trip.author.name}</ThemedText>
+        <Image source={{ uri: trip.userInfo.avatar }} style={styles.avatar} />
+        <ThemedText>{trip.userInfo.username}</ThemedText>
       </View>
     </TouchableOpacity>
   );
 }
 
-export default function HomeScreen() {
-  const router = useRouter();
+// 在组件内部添加状态和API调用
+export default function TabOneScreen() {
+  const [travelNotes, setTravelNotes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const colorScheme = useColorScheme();
-  const [trips, setTrips] = useState(MOCK_TRIPS);
-  const [searchText, setSearchText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // 处理搜索功能
-  const handleSearch = (text: any) => {
-    setSearchText(text);
-    if (text) {
-      const filtered = MOCK_TRIPS.filter(
-        (trip) =>
-          trip.title.toLowerCase().includes(text.toLowerCase()) ||
-          trip.author.name.toLowerCase().includes(text.toLowerCase())
-      );
-      setTrips(filtered);
-    } else {
-      setTrips(MOCK_TRIPS);
+  // 获取游记列表
+  const fetchTravelNotes = async () => {
+    console.log("获取游记");
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await getTravelNotes();
+      if (response) {
+        console.log("获取游记成功", response);
+        setTravelNotes(response as any);
+      }
+    } catch (err) {
+      console.error("获取游记列表失败:", err);
+      setError("获取游记列表失败，请稍后重试");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 处理游记卡片点击
-  const handleTripPress = (tripId: any) => {
-    router.push(`/trip/${tripId}`);
+  // 搜索游记
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      fetchTravelNotes();
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await searchTravelNotes(searchQuery);
+      if (response && response.data) {
+        setTravelNotes(response.data);
+      }
+    } catch (err) {
+      console.error("搜索游记失败:", err);
+      setError("搜索游记失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 瀑布流布局的实现
-  const renderItem = ({ item, index }) => (
-    <View
-      style={[
-        styles.column,
-        index % 2 === 0 ? { paddingRight: 8 } : { paddingLeft: 8 },
-      ]}
-    >
-      <TripCard trip={item} onPress={() => handleTripPress(item.id)} />
-    </View>
-  );
+  // 组件挂载时获取数据
+  useEffect(() => {
+    fetchTravelNotes();
+  }, []);
 
+  // 在组件中添加搜索框和加载状态
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
@@ -124,16 +177,27 @@ export default function HomeScreen() {
             style={styles.searchInput}
             placeholder="搜索游记标题或作者"
             placeholderTextColor={Colors[colorScheme ?? "light"].tabIconDefault}
-            value={searchText}
-            onChangeText={handleSearch}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
+          <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
+            <ThemedText style={styles.searchButtonText}>搜索</ThemedText>
+          </TouchableOpacity>
         </View>
       </ThemedView>
 
       <FlatList
-        data={trips}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        data={travelNotes}
+        renderItem={({ item }) => (
+          <TripCard
+            trip={item}
+            onPress={() => {
+              console.log('跳转到游记详情，ID:', item._id); // 添加日志
+              router.push(`/trip/${item._id}`);
+            }}
+          />
+        )}
+        keyExtractor={(item) => item._id}
         numColumns={2}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
@@ -173,12 +237,11 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 8,
-  },
-  column: {
-    flex: 1,
-    marginBottom: 16,
+    paddingHorizontal: 4, // 减小水平内边距，让两个卡片之间的间距更合理
   },
   card: {
+    flex: 1, // 让卡片平均分配空间
+    margin: 4, // 设置卡片间距
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#fff",
@@ -190,7 +253,8 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: "100%",
-    height: 150,
+    height: 120, // 调整图片高度，使其在小尺寸下更合适
+    backgroundColor: "#f0f0f0", // 添加背景色，在图片加载前显示
   },
   cardTitle: {
     padding: 8,
@@ -207,5 +271,17 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     marginRight: 8,
+  },
+  searchButton: {
+    backgroundColor: "#007AFF", // iOS 风格的蓝色
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  searchButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
