@@ -85,7 +85,7 @@ export default function MyTripsScreen() {
           title: item.title,
           coverImage:
             item.imgList && item.imgList.length > 0
-              ? item.imgList[0].replace("localhost", "192.168.1.108")
+              ? item.imgList[0].replace("localhost", "10.0.2.2")
               : "https://picsum.photos/id/1011/800/600",
           status: item.state !== undefined ? String(item.state) : "pending", // 转换状态为字符串
           createdAt: formatDateTime(item.publish),

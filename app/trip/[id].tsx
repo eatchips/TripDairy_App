@@ -94,6 +94,9 @@ export default function TripDetailScreen() {
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const videoRef = useRef(null);
   const width = Dimensions.get("window").width;
+  
+  // 添加一个状态来存储处理后的视频URL
+  const [processedVideoUrl, setProcessedVideoUrl] = useState<string>("");
 
   // 加载游记详情
   useEffect(() => {
@@ -110,6 +113,13 @@ export default function TripDetailScreen() {
       const response: any = await getTravelNoteDetail(id);
       console.log("游记:", response);
       setTrip(response);
+      
+      // 处理视频URL
+      if (response.video) {
+        const videoUrl = response.video.replace("localhost", "10.0.2.2");
+        console.log("处理后的视频URL:", videoUrl);
+        setProcessedVideoUrl(videoUrl);
+      }
     } catch (error) {
       console.error("获取游记详情失败:", error);
       Alert.alert("错误", "获取游记详情失败");
@@ -117,17 +127,42 @@ export default function TripDetailScreen() {
     }
   };
 
-  // 创建视频播放器 - 无条件调用Hook
-  // 即使trip.video为null，也要调用Hook，只是传入空字符串
-  const carouselVideoPlayer = useVideoPlayer(trip?.video || "");
-  const fullscreenVideoPlayer = useVideoPlayer(trip?.video || "");
+  // 创建视频播放器 - 使用处理后的URL
+  const carouselVideoPlayer = useVideoPlayer(processedVideoUrl);
+  const fullscreenVideoPlayer = useVideoPlayer(processedVideoUrl);
+  
+  // 当视频URL更新时，重新加载视频
+  useEffect(() => {
+    if (processedVideoUrl && carouselVideoPlayer) {
+      console.log("重新加载视频:", processedVideoUrl);
+      // 检查播放器对象是否有loadAsync方法
+      if (carouselVideoPlayer && typeof carouselVideoPlayer.loadAsync === 'function') {
+        carouselVideoPlayer.loadAsync({ uri: processedVideoUrl }, {}, false);
+      } else {
+        console.log("视频播放器对象:", carouselVideoPlayer);
+        // 尝试使用其他可能的方法
+        if (carouselVideoPlayer && typeof carouselVideoPlayer.load === 'function') {
+          carouselVideoPlayer.load({ uri: processedVideoUrl });
+        }
+      }
+    }
+    
+    if (processedVideoUrl && fullscreenVideoPlayer) {
+      // 同样检查全屏播放器
+      if (fullscreenVideoPlayer && typeof fullscreenVideoPlayer.loadAsync === 'function') {
+        fullscreenVideoPlayer.loadAsync({ uri: processedVideoUrl }, {}, false);
+      } else if (fullscreenVideoPlayer && typeof fullscreenVideoPlayer.load === 'function') {
+        fullscreenVideoPlayer.load({ uri: processedVideoUrl });
+      }
+    }
+  }, [processedVideoUrl, carouselVideoPlayer, fullscreenVideoPlayer]);
 
   // 处理全屏视频播放
   useEffect(() => {
-    if (isFullscreenVideo && fullscreenVideoPlayer && trip?.video) {
+    if (isFullscreenVideo && fullscreenVideoPlayer && processedVideoUrl) {
       fullscreenVideoPlayer.play();
     }
-  }, [isFullscreenVideo, fullscreenVideoPlayer, trip]);
+  }, [isFullscreenVideo, fullscreenVideoPlayer, processedVideoUrl]);
 
   if (!trip) {
     return (
@@ -140,19 +175,23 @@ export default function TripDetailScreen() {
   // 准备轮播图数据
   const carouselItems = [];
   console.log("轮播图处理前的", trip.imgList);
-  if (trip.video) {
-    carouselItems.push({ type: "video", uri: trip.video });
+  console.log("视频URL:", trip.video);
+  if (processedVideoUrl) {
+    carouselItems.push({ type: "video", uri: processedVideoUrl });
   }
   if (trip.imgList) {
     trip.imgList.forEach((image) => {
       carouselItems.push({
         type: "image",
-        uri: image.replace("localhost", "192.168.1.108"),
+        uri: image.replace("localhost", "10.0.2.2"),
       });
     });
   }
+  // 修改图片查看器数据格式，确保包含完整的对象结构
   const imageViewImages = trip.imgList
-    ? trip.imgList.map((uri) => ({ uri }))
+    ? trip.imgList.map((uri) => ({
+        uri: uri.replace("localhost", "10.0.2.2")
+      }))
     : [];
 
   // 调试输出
@@ -198,9 +237,9 @@ export default function TripDetailScreen() {
         <TouchableOpacity
           style={styles.carouselItem}
           onPress={() => {
-            // 确保索引不会为负数
-            const imageIndex = trip.video ? Math.max(0, index - 1) : index;
-            console.log("点击图片，索引:", imageIndex); // 添加调试日志
+            // 修改索引计算逻辑，确保正确计算图片索引
+            const imageIndex = trip.video ? index - 1 : index;
+            console.log("点击图片，索引:", imageIndex, "图片URI:", item.uri); // 增强调试日志
             setCurrentImageIndex(imageIndex);
             setIsImageViewVisible(true);
           }}
@@ -319,8 +358,8 @@ export default function TripDetailScreen() {
         imageIndex={currentImageIndex}
         visible={isImageViewVisible}
         onRequestClose={() => setIsImageViewVisible(false)}
-        swipeToCloseEnabled
-        doubleTapToZoomEnabled
+        swipeToCloseEnabled={true}
+        doubleTapToZoomEnabled={true}
       />
     </ThemedView>
   );

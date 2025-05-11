@@ -35,10 +35,12 @@ export const uploadImg = (formData: FormData) => {
 
 // 上传视频
 export const uploadVideo = (formData: FormData) => {
+  console.log('上传视频请求参数:', formData);
   return service.post("/uploadVideo", formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    timeout: 300000 // 增加超时时间到5分钟
   });
 }
 

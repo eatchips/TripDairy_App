@@ -67,7 +67,7 @@ function TripCard({ trip, onPress }: TripCardProps) {
     if (trip.imgList && trip.imgList.length > 0) {
       try {
         console.log("处理图片URL");
-        const imageUrl = trip.imgList[0].replace("localhost", "192.168.1.108");
+        const imageUrl = trip.imgList[0].replace("localhost", "10.0.2.2");
         setCoverImageUrl(imageUrl);
       } catch (error) {
         console.error("处理图片URL时出错:", error);
@@ -130,6 +130,7 @@ export default function TabOneScreen() {
 
   // 搜索游记
   const handleSearch = async () => {
+    console.log("搜索游记内容：", searchQuery);
     if (!searchQuery.trim()) {
       fetchTravelNotes();
       return;
@@ -140,8 +141,9 @@ export default function TabOneScreen() {
 
     try {
       const response = await searchTravelNotes(searchQuery);
-      if (response && response.data) {
-        setTravelNotes(response.data);
+      console.log("搜索游记成功", response);
+      if (response) {
+        setTravelNotes(response);
       }
     } catch (err) {
       console.error("搜索游记失败:", err);
@@ -177,6 +179,21 @@ export default function TabOneScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity 
+              onPress={() => {
+                setSearchQuery('');
+                fetchTravelNotes(); // 清除搜索内容后刷新游记列表
+              }} 
+              style={styles.clearButton}
+            >
+              <IconSymbol
+                name="xmark.circle.fill"
+                size={18}
+                color={Colors[colorScheme ?? "light"].tabIconDefault}
+              />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
             <ThemedText style={styles.searchButtonText}>搜索</ThemedText>
           </TouchableOpacity>
@@ -237,8 +254,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4, // 减小水平内边距，让两个卡片之间的间距更合理
   },
   card: {
-    flex: 1, // 让卡片平均分配空间
-    margin: 4, // 设置卡片间距
+    flex: 1, // 保持flex: 1以便在同一行时平均分配空间
+    margin: 4,
+    maxWidth: '48%', // 设置最大宽度为容器的48%
+    minWidth: '48%', // 设置最小宽度，确保两列布局的一致性
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#fff",
@@ -280,5 +299,9 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
+  },
+  clearButton: {
+    padding: 4,
+    marginRight: 4,
   },
 });

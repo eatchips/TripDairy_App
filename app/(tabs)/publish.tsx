@@ -1,7 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
+import { Link, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import * as VideoThumbnails from "expo-video-thumbnails";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 
-import { publishTravelNote, uploadImg, uploadVideo } from "@/api/api";
+import { getTravelNoteDetail, publishTravelNote, uploadImg, uploadVideo } from "@/api/api";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -55,10 +55,16 @@ const MY_TRIPS = [
 // 在组件内部添加状态和API调用
 export default function PublishScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const params = useLocalSearchParams();
   const tripId = params.id as string;
   const { id } = params;
   const colorScheme = useColorScheme();
+  
+  // 添加一个标记，用于跟踪组件是否已卸载
+  const isMounted = useRef(true);
+  // 添加一个标记，用于跟踪是否已经加载过数据
+  const dataLoaded = useRef(false);
 
   // 使用zustand store获取登录状态
   const { isLoggedIn, user } = useUserStore();
@@ -72,20 +78,95 @@ export default function PublishScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // 清空所有表单数据的函数
+  const clearFormData = () => {
+    if (isMounted.current) {
+      setTitle("");
+      setContent("");
+      setImages([]);
+      setVideo(null);
+      setVideoThumbnail(null);
+      setIsEditing(false);
+      // 重置数据加载标记
+      dataLoaded.current = false;
+    }
+  };
+
+  // 监听页面焦点变化
+  useEffect(() => {
+    // 设置组件挂载标记
+    isMounted.current = true;
+    
+    // 添加焦点监听器
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      console.log('发布页面获得焦点，tripId:', tripId);
+      // 重置数据加载标记，允许重新加载数据
+      dataLoaded.current = false;
+    });
+    
+    // 组件卸载时清理
+    return () => {
+      isMounted.current = false;
+      unsubscribeFocus();
+    };
+  }, [navigation]);
+
   // 如果是编辑模式，加载现有游记数据
   useEffect(() => {
-    if (tripId) {
-      const trip = MY_TRIPS.find((t) => t.id === tripId);
-      if (trip) {
-        setTitle(trip.title);
-        setContent(trip.content);
-        setImages(trip.images);
-        setVideo(trip.video);
-        if (trip.video) {
-          generateThumbnail(trip.video);
+    // 只有当组件挂载且数据未加载过时才加载数据
+    if (tripId && !dataLoaded.current && isMounted.current) {
+      console.log("准备加载游记数据，tripId:", tripId);
+      
+      // 使用API获取游记详情
+      const fetchTripDetail = async () => {
+        try {
+          setUploading(true); // 显示加载状态
+          const response = await getTravelNoteDetail(tripId);
+          console.log("获取游记详情成功:", response);
+          
+          if (response && isMounted.current) {
+            setTitle(response.title || "");
+            setContent(response.content || "");
+            
+            // 处理图片列表
+            if (response.imgList && response.imgList.length > 0) {
+              // 替换localhost为10.0.2.2以在模拟器中正确显示
+              const formattedImages = response.imgList.map((img: string) => 
+                img.replace("localhost", "10.0.2.2")
+              );
+              setImages(formattedImages);
+            } else {
+              setImages([]);
+            }
+            
+            // 处理视频
+            if (response.video) {
+              const videoUrl = response.video.replace("localhost", "10.0.2.2");
+              setVideo(videoUrl);
+              generateThumbnail(videoUrl);
+            } else {
+              setVideo(null);
+              setVideoThumbnail(null);
+            }
+            
+            setIsEditing(true);
+            // 标记数据已加载
+            dataLoaded.current = true;
+          }
+        } catch (error) {
+          console.error("获取游记详情失败:", error);
+          Alert.alert("错误", "获取游记详情失败，请稍后重试");
+        } finally {
+          if (isMounted.current) {
+            setUploading(false);
+          }
         }
-        setIsEditing(true);
-      }
+      };
+      
+      fetchTripDetail();
+    } else if (!tripId && isMounted.current) {
+      // 如果没有tripId，清空表单
+      clearFormData();
     }
   }, [tripId]);
 
@@ -117,6 +198,7 @@ export default function PublishScreen() {
     } as any);
 
     try {
+      console.log("上传图片数据: ", formData);
       const response = await uploadImg(formData);
       console.log("上传图片成功:", response);
       return response; // 返回上传后的图片URL
@@ -128,6 +210,7 @@ export default function PublishScreen() {
 
   // 上传视频
   const handleVideoUpload = async (videoUri: string) => {
+    console.log("开始上传视频:", videoUri);
     if (!videoUri) return null;
 
     const formData = new FormData();
@@ -135,17 +218,20 @@ export default function PublishScreen() {
     const match = /\.(\w+)$/.exec(filename as string);
     const type = match ? `video/${match[1]}` : "video/mp4";
 
-    formData.append("file", {
+    formData.append("video", {
       uri: videoUri,
       name: filename,
       type,
     } as any);
 
     try {
+      // 增加超时时间，视频上传需要更长时间
+      console.log("上传视频数据: ", formData);
       const response = await uploadVideo(formData);
-      return response.data.url; // 返回上传后的视频URL
+      console.log("上传视频成功，完整响应:", JSON.stringify(response));
+      return response.path; // 使用response.path
     } catch (error) {
-      console.error("上传视频失败:", error);
+      console.error("上传视频失败，详细错误:", error);
       throw error;
     }
   };
@@ -171,6 +257,7 @@ export default function PublishScreen() {
 
   // 选择视频
   const pickVideo = async () => {
+    console.log("开始选择视频");
     if (video) {
       Alert.alert("提示", "只能上传一个视频，请先删除现有视频");
       return;
@@ -182,9 +269,10 @@ export default function PublishScreen() {
       aspect: [16, 9],
       quality: 0.8,
     });
-
+    console.log("选择视频结果:", result);
     if (!result.canceled) {
       const videoUri = result.assets[0].uri;
+      console.log("选择的视频URI:", videoUri);
       setVideo(videoUri);
       generateThumbnail(videoUri);
     }
