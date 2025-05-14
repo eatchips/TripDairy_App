@@ -1,7 +1,12 @@
 import * as ImagePicker from "expo-image-picker";
-import { Link, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import {
+  Link,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import * as VideoThumbnails from "expo-video-thumbnails";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -12,7 +17,13 @@ import {
   View,
 } from "react-native";
 
-import { getTravelNoteDetail, publishTravelNote, uploadImg, uploadVideo } from "@/api/api";
+import {
+  getTravelNoteDetail,
+  polishTextStream,
+  publishTravelNote,
+  uploadImg,
+  uploadVideo,
+} from "@/api/api";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -21,36 +32,36 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useUserStore } from "@/store/userStore";
 
 // 模拟游记数据
-const MY_TRIPS = [
-  {
-    id: "1",
-    title: "三亚海滩度假",
-    content: "这是一次美妙的三亚之旅...",
-    images: ["https://picsum.photos/id/1011/800/600"],
-    video: null,
-    status: "approved",
-    createdAt: "2023-10-15",
-  },
-  {
-    id: "2",
-    title: "重庆洪崖洞夜景",
-    content: "重庆的夜景真的很美...",
-    images: ["https://picsum.photos/id/1015/800/600"],
-    video: null,
-    status: "pending",
-    createdAt: "2023-10-20",
-  },
-  {
-    id: "3",
-    title: "西安兵马俑一日游",
-    content: "兵马俑真是令人震撼...",
-    images: ["https://picsum.photos/id/1019/800/600"],
-    video: null,
-    status: "rejected",
-    rejectReason: "内容不符合社区规范，请修改后重新提交",
-    createdAt: "2023-10-25",
-  },
-];
+// const MY_TRIPS = [
+//   {
+//     id: "1",
+//     title: "三亚海滩度假",
+//     content: "这是一次美妙的三亚之旅...",
+//     images: ["https://picsum.photos/id/1011/800/600"],
+//     video: null,
+//     status: "approved",
+//     createdAt: "2023-10-15",
+//   },
+//   {
+//     id: "2",
+//     title: "重庆洪崖洞夜景",
+//     content: "重庆的夜景真的很美...",
+//     images: ["https://picsum.photos/id/1015/800/600"],
+//     video: null,
+//     status: "pending",
+//     createdAt: "2023-10-20",
+//   },
+//   {
+//     id: "3",
+//     title: "西安兵马俑一日游",
+//     content: "兵马俑真是令人震撼...",
+//     images: ["https://picsum.photos/id/1019/800/600"],
+//     video: null,
+//     status: "rejected",
+//     rejectReason: "内容不符合社区规范，请修改后重新提交",
+//     createdAt: "2023-10-25",
+//   },
+// ];
 
 // 在组件内部添加状态和API调用
 export default function PublishScreen() {
@@ -60,7 +71,12 @@ export default function PublishScreen() {
   const tripId = params.id as string;
   const { id } = params;
   const colorScheme = useColorScheme();
-  
+
+  //流式润色功能
+  const [isPolishing, setIsPolishing] = useState(false);
+  const [polishProgress, setPolishProgress] = useState("");
+  const polishControlRef = useRef<{ cancel: () => void } | null>(null);
+
   // 添加一个标记，用于跟踪组件是否已卸载
   const isMounted = useRef(true);
   // 添加一个标记，用于跟踪是否已经加载过数据
@@ -96,14 +112,14 @@ export default function PublishScreen() {
   useEffect(() => {
     // 设置组件挂载标记
     isMounted.current = true;
-    
+
     // 添加焦点监听器
-    const unsubscribeFocus = navigation.addListener('focus', () => {
-      console.log('发布页面获得焦点，tripId:', tripId);
+    const unsubscribeFocus = navigation.addListener("focus", () => {
+      console.log("发布页面获得焦点，tripId:", tripId);
       // 重置数据加载标记，允许重新加载数据
       dataLoaded.current = false;
     });
-    
+
     // 组件卸载时清理
     return () => {
       isMounted.current = false;
@@ -111,34 +127,44 @@ export default function PublishScreen() {
     };
   }, [navigation]);
 
+  //页面卸载的时候取消润色请求
+  useEffect(() => {
+    return () => {
+      // 组件卸载时取消润色请求
+      if (polishControlRef.current) {
+        polishControlRef.current.cancel();
+      }
+    };
+  }, []);
+
   // 如果是编辑模式，加载现有游记数据
   useEffect(() => {
     // 只有当组件挂载且数据未加载过时才加载数据
     if (tripId && !dataLoaded.current && isMounted.current) {
       console.log("准备加载游记数据，tripId:", tripId);
-      
+
       // 使用API获取游记详情
       const fetchTripDetail = async () => {
         try {
           setUploading(true); // 显示加载状态
           const response = await getTravelNoteDetail(tripId);
           console.log("获取游记详情成功:", response);
-          
+
           if (response && isMounted.current) {
             setTitle(response.title || "");
             setContent(response.content || "");
-            
+
             // 处理图片列表
             if (response.imgList && response.imgList.length > 0) {
               // 替换localhost为10.0.2.2以在模拟器中正确显示
-              const formattedImages = response.imgList.map((img: string) => 
+              const formattedImages = response.imgList.map((img: string) =>
                 img.replace("localhost", "10.0.2.2")
               );
               setImages(formattedImages);
             } else {
               setImages([]);
             }
-            
+
             // 处理视频
             if (response.video) {
               const videoUrl = response.video.replace("localhost", "10.0.2.2");
@@ -148,7 +174,7 @@ export default function PublishScreen() {
               setVideo(null);
               setVideoThumbnail(null);
             }
-            
+
             setIsEditing(true);
             // 标记数据已加载
             dataLoaded.current = true;
@@ -162,7 +188,7 @@ export default function PublishScreen() {
           }
         }
       };
-      
+
       fetchTripDetail();
     } else if (!tripId && isMounted.current) {
       // 如果没有tripId，清空表单
@@ -371,6 +397,51 @@ export default function PublishScreen() {
     handlePublish();
   };
 
+  //文本润色函数
+  // 添加文本润色函数
+  const handlePolishText = () => {
+    if (!content.trim()) {
+      Alert.alert("提示", "请先输入游记内容");
+      return;
+    }
+
+    setIsPolishing(true);
+    setPolishProgress("");
+
+    // 取消之前的请求（如果有）
+    if (polishControlRef.current) {
+      polishControlRef.current.cancel();
+    }
+
+    // 调用流式润色API
+    polishControlRef.current = polishTextStream(content, "旅游日记", {
+      onOriginal: (text) => {
+        console.log("原始文本:", text);
+      },
+      onChunk: (chunk, fullText) => {
+        console.log("收到新内容:", chunk);
+        console.log("当前完整文本:", fullText);
+        console.log("设置polishProgress前的状态:", polishProgress);
+        setPolishProgress(fullText);
+      },
+      onComplete: (fullText) => {
+        console.log("润色完成:", fullText);
+        setContent(fullText);
+        setIsPolishing(false);
+        setPolishProgress("");
+        polishControlRef.current = null;
+        Alert.alert("成功", "文本润色完成");
+      },
+      onError: (error) => {
+        console.error("润色出错:", error);
+        setIsPolishing(false);
+        setPolishProgress("");
+        polishControlRef.current = null;
+        Alert.alert("错误", `文本润色失败: ${error}`);
+      },
+    });
+  };
+
   // 如果未登录，显示登录提示
   if (!isLoggedIn) {
     return (
@@ -412,16 +483,40 @@ export default function PublishScreen() {
 
         {/* 内容输入 */}
         <ThemedView style={styles.inputContainer}>
-          <ThemedText type="defaultSemiBold">内容</ThemedText>
-          <TextInput
-            style={styles.contentInput}
-            placeholder="请输入游记内容"
-            placeholderTextColor={Colors[colorScheme ?? "light"].tabIconDefault}
-            value={content}
-            onChangeText={setContent}
-            multiline
-            textAlignVertical="top"
-          />
+          {/*  修改润色按钮和添加进度显示 */}
+          <ThemedView style={styles.inputContainer}>
+            <ThemedText type="defaultSemiBold">内容</ThemedText>
+            <TextInput
+              style={styles.contentInput}
+              multiline
+              placeholder="写下你的游记内容"
+              value={content}
+              onChangeText={setContent}
+            />
+
+            {/* 显示润色进度 */}
+            {isPolishing && polishProgress ? (
+              <View style={styles.polishProgressContainer}>
+                <ThemedText style={styles.polishProgressText}>
+                  润色中: {polishProgress}
+                </ThemedText>
+              </View>
+            ) : null}
+
+            {/* 添加润色按钮 */}
+            <TouchableOpacity
+              style={[
+                styles.polishButton,
+                isPolishing && styles.polishButtonDisabled,
+              ]}
+              onPress={handlePolishText}
+              disabled={isPolishing}
+            >
+              <ThemedText style={styles.polishButtonText}>
+                {isPolishing ? "润色中..." : "文本润色"}
+              </ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
         </ThemedView>
 
         {/* 图片上传 */}
@@ -531,6 +626,7 @@ export default function PublishScreen() {
   );
 }
 
+// 在 StyleSheet.create 中添加样式
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -559,7 +655,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    padding: 12,
+    textAlignVertical: "top",
+    paddingHorizontal: 12, // 只设置水平内边距
+    paddingTop: 8, // 顶部内边距较小
+    paddingBottom: 8, // 底部内边距较小
     fontSize: 16,
     marginTop: 8,
     height: 150,
@@ -682,5 +781,38 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  polishButton: {
+    backgroundColor: "#2DD4BF", // 蓝绿色
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  polishButtonDisabled: {
+    backgroundColor: "#A7F3D0", // 更浅的颜色表示禁用状态
+    opacity: 0.7,
+  },
+  polishButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  polishProgressContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: "#f0f8ff", // 淡蓝色背景
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2DD4BF",
+    maxHeight: 200,
+    overflow: "scroll", // 修改为 "scroll" 或 "auto"
+    marginBottom: 10, // 添加底部间距
+  },
+  polishProgressText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#000000", // 添加文本颜色
   },
 });
