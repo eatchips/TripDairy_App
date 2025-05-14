@@ -35,7 +35,7 @@ export const uploadImg = (formData: FormData) => {
 
 // 上传视频
 export const uploadVideo = (formData: FormData) => {
-  console.log('上传视频请求参数:', formData);
+  // console.log('上传视频请求参数:', formData);
   return service.post("/uploadVideo", formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
@@ -53,10 +53,10 @@ export const getMyPublish = (openid: string) => {
 
 // 用户登录
 export const login = (username: string, password: string) => {
-  console.log('登录请求参数:', { username, password });
+  // console.log('登录请求参数:', { username, password });
   return service.post("/toLogin", { username, password })
     .then(response => {
-      console.log('登录响应数据:', response);
+      // console.log('登录响应数据:', response);
       return response;
     })
     .catch(error => {
@@ -172,7 +172,7 @@ export const polishTextStream = (
       try {
         while (true) {
           const { done, value } = await reader.read();
-          console.log('value:', value, 'done:', done);
+          // console.log('value:', value, 'done:', done);
           if (done) {
             // 处理剩余buffer
             if (buffer.trim()) {
@@ -183,7 +183,7 @@ export const polishTextStream = (
           }
           
           const  value8 = new Uint8Array([value]);
-          console.log('value8:', value8);
+          // console.log('value8:', value8);
           buffer += decoder.decode(value8, { stream: !done });
          
 

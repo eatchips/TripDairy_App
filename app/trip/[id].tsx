@@ -94,7 +94,7 @@ export default function TripDetailScreen() {
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const videoRef = useRef(null);
   const width = Dimensions.get("window").width;
-  
+
   // 添加一个状态来存储处理后的视频URL
   const [processedVideoUrl, setProcessedVideoUrl] = useState<string>("");
 
@@ -111,13 +111,13 @@ export default function TripDetailScreen() {
   const fetchTripDetails = async (id: any) => {
     try {
       const response: any = await getTravelNoteDetail(id);
-      console.log("游记:", response);
+      // console.log("游记:", response);
       setTrip(response);
-      
+
       // 处理视频URL
       if (response.video) {
         const videoUrl = response.video.replace("localhost", "10.0.2.2");
-        console.log("处理后的视频URL:", videoUrl);
+        // console.log("处理后的视频URL:", videoUrl);
         setProcessedVideoUrl(videoUrl);
       }
     } catch (error) {
@@ -130,28 +130,40 @@ export default function TripDetailScreen() {
   // 创建视频播放器 - 使用处理后的URL
   const carouselVideoPlayer = useVideoPlayer(processedVideoUrl);
   const fullscreenVideoPlayer = useVideoPlayer(processedVideoUrl);
-  
+
   // 当视频URL更新时，重新加载视频
   useEffect(() => {
     if (processedVideoUrl && carouselVideoPlayer) {
-      console.log("重新加载视频:", processedVideoUrl);
+      // console.log("重新加载视频:", processedVideoUrl);
       // 检查播放器对象是否有loadAsync方法
-      if (carouselVideoPlayer && typeof carouselVideoPlayer.loadAsync === 'function') {
+      if (
+        carouselVideoPlayer &&
+        typeof carouselVideoPlayer.loadAsync === "function"
+      ) {
         carouselVideoPlayer.loadAsync({ uri: processedVideoUrl }, {}, false);
       } else {
-        console.log("视频播放器对象:", carouselVideoPlayer);
+        // console.log("视频播放器对象:", carouselVideoPlayer);
         // 尝试使用其他可能的方法
-        if (carouselVideoPlayer && typeof carouselVideoPlayer.load === 'function') {
+        if (
+          carouselVideoPlayer &&
+          typeof carouselVideoPlayer.load === "function"
+        ) {
           carouselVideoPlayer.load({ uri: processedVideoUrl });
         }
       }
     }
-    
+
     if (processedVideoUrl && fullscreenVideoPlayer) {
       // 同样检查全屏播放器
-      if (fullscreenVideoPlayer && typeof fullscreenVideoPlayer.loadAsync === 'function') {
+      if (
+        fullscreenVideoPlayer &&
+        typeof fullscreenVideoPlayer.loadAsync === "function"
+      ) {
         fullscreenVideoPlayer.loadAsync({ uri: processedVideoUrl }, {}, false);
-      } else if (fullscreenVideoPlayer && typeof fullscreenVideoPlayer.load === 'function') {
+      } else if (
+        fullscreenVideoPlayer &&
+        typeof fullscreenVideoPlayer.load === "function"
+      ) {
         fullscreenVideoPlayer.load({ uri: processedVideoUrl });
       }
     }
@@ -174,8 +186,8 @@ export default function TripDetailScreen() {
 
   // 准备轮播图数据
   const carouselItems = [];
-  console.log("轮播图处理前的", trip.imgList);
-  console.log("视频URL:", trip.video);
+  // console.log("轮播图处理前的", trip.imgList);
+  // console.log("视频URL:", trip.video);
   if (processedVideoUrl) {
     carouselItems.push({ type: "video", uri: processedVideoUrl });
   }
@@ -190,13 +202,13 @@ export default function TripDetailScreen() {
   // 修改图片查看器数据格式，确保包含完整的对象结构
   const imageViewImages = trip.imgList
     ? trip.imgList.map((uri) => ({
-        uri: uri.replace("localhost", "10.0.2.2")
+        uri: uri.replace("localhost", "10.0.2.2"),
       }))
     : [];
 
   // 调试输出
-  console.log("图片数据:", imageViewImages);
-  console.log("轮播图处理后的数据:", carouselItems);
+  // console.log("图片数据:", imageViewImages);
+  // console.log("轮播图处理后的数据:", carouselItems);
 
   // 处理分享
   const handleShare = async () => {
@@ -239,7 +251,7 @@ export default function TripDetailScreen() {
           onPress={() => {
             // 修改索引计算逻辑，确保正确计算图片索引
             const imageIndex = trip.video ? index - 1 : index;
-            console.log("点击图片，索引:", imageIndex, "图片URI:", item.uri); // 增强调试日志
+            // console.log("点击图片，索引:", imageIndex, "图片URI:", item.uri); // 增强调试日志
             setCurrentImageIndex(imageIndex);
             setIsImageViewVisible(true);
           }}

@@ -66,7 +66,7 @@ function TripCard({ trip, onPress }: TripCardProps) {
     // 检查imgList是否存在且有元素
     if (trip.imgList && trip.imgList.length > 0) {
       try {
-        console.log("处理图片URL");
+        // console.log("处理图片URL");
         const imageUrl = trip.imgList[0].replace("localhost", "10.0.2.2");
         setCoverImageUrl(imageUrl);
       } catch (error) {
@@ -110,14 +110,14 @@ export default function TabOneScreen() {
 
   // 获取游记列表
   const fetchTravelNotes = async () => {
-    console.log("获取游记");
+    // console.log("获取游记");
     setLoading(true);
     setError("");
 
     try {
       const response = await getTravelNotes();
       if (response) {
-        console.log("获取游记成功", response);
+        // console.log("获取游记成功", response);
         setTravelNotes(response as any);
       }
     } catch (err) {
@@ -130,7 +130,7 @@ export default function TabOneScreen() {
 
   // 搜索游记
   const handleSearch = async () => {
-    console.log("搜索游记内容：", searchQuery);
+    // console.log("搜索游记内容：", searchQuery);
     if (!searchQuery.trim()) {
       fetchTravelNotes();
       return;
@@ -141,7 +141,7 @@ export default function TabOneScreen() {
 
     try {
       const response = await searchTravelNotes(searchQuery);
-      console.log("搜索游记成功", response);
+      // console.log("搜索游记成功", response);
       if (response) {
         setTravelNotes(response);
       }
@@ -180,11 +180,11 @@ export default function TabOneScreen() {
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => {
-                setSearchQuery('');
+                setSearchQuery("");
                 fetchTravelNotes(); // 清除搜索内容后刷新游记列表
-              }} 
+              }}
               style={styles.clearButton}
             >
               <IconSymbol
@@ -206,7 +206,7 @@ export default function TabOneScreen() {
           <TripCard
             trip={item}
             onPress={() => {
-              console.log("跳转到游记详情，ID:", item._id); // 添加日志
+              // console.log("跳转到游记详情，ID:", item._id); // 添加日志
               router.push(`/trip/${item._id}`);
             }}
           />
@@ -256,8 +256,8 @@ const styles = StyleSheet.create({
   card: {
     flex: 1, // 保持flex: 1以便在同一行时平均分配空间
     margin: 4,
-    maxWidth: '48%', // 设置最大宽度为容器的48%
-    minWidth: '48%', // 设置最小宽度，确保两列布局的一致性
+    maxWidth: "48%", // 设置最大宽度为容器的48%
+    minWidth: "48%", // 设置最小宽度，确保两列布局的一致性
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#fff",

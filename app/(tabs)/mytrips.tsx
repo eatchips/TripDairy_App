@@ -77,7 +77,7 @@ export default function MyTripsScreen() {
 
     try {
       const response: any = await getMyPublish(user.id);
-      console.log("response:", response);
+      // console.log("response:", response);
       if (response) {
         // 根据API返回的数据结构进行适配
         const formattedTrips = response.map((item: any) => ({
@@ -248,58 +248,56 @@ export default function MyTripsScreen() {
         <FlatList
           data={myTrips}
           renderItem={({ item }) => (
-            console.log("item:", item),
-            (
-              <ThemedView style={styles.tripItem} key={`trip-${item.id}`}>
-                <Image
-                  source={{ uri: item.coverImage }}
-                  style={styles.tripImage}
-                />
-                <ThemedView style={styles.tripContent}>
-                  <View style={styles.tripHeader}>
-                    <ThemedText type="defaultSemiBold" style={styles.tripTitle}>
-                      {item.title}
-                    </ThemedText>
-                    <StatusBadge status={item.status} />
-                  </View>
-                  <ThemedText style={styles.tripDate}>
-                    创建于: {item.createdAt}
+            // console.log("item:", item),
+            <ThemedView style={styles.tripItem} key={`trip-${item.id}`}>
+              <Image
+                source={{ uri: item.coverImage }}
+                style={styles.tripImage}
+              />
+              <ThemedView style={styles.tripContent}>
+                <View style={styles.tripHeader}>
+                  <ThemedText type="defaultSemiBold" style={styles.tripTitle}>
+                    {item.title}
                   </ThemedText>
+                  <StatusBadge status={item.status} />
+                </View>
+                <ThemedText style={styles.tripDate}>
+                  创建于: {item.createdAt}
+                </ThemedText>
 
-                  {(item.status === "rejected" || item.status === "2") &&
-                    item.rejectReason && (
-                      <ThemedView style={styles.rejectReasonContainer}>
-                        <ThemedText style={styles.rejectReason}>
-                          拒绝原因: {item.rejectReason}
-                        </ThemedText>
-                      </ThemedView>
-                    )}
+                {(item.status === "rejected" || item.status === "2") &&
+                  item.rejectReason && (
+                    <ThemedView style={styles.rejectReasonContainer}>
+                      <ThemedText style={styles.rejectReason}>
+                        拒绝原因: {item.rejectReason}
+                      </ThemedText>
+                    </ThemedView>
+                  )}
 
-                  <View style={styles.actionButtons}>
-                    {(item.status === "pending" ||
-                      item.status === "rejected" ||
-                      item.status === "0" ||
-                      item.status === "2") && (
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.editButton]}
-                        onPress={() => handleEdit(item)}
-                      >
-                        <IconSymbol name="pencil" size={16} color="#fff" />
-                        <ThemedText style={styles.buttonText}>编辑</ThemedText>
-                      </TouchableOpacity>
-                    )}
-
+                <View style={styles.actionButtons}>
+                  {(item.status === "pending" ||
+                    item.status === "rejected" ||
+                    item.status === "0" ||
+                    item.status === "2") && (
                     <TouchableOpacity
-                      style={[styles.actionButton, styles.deleteButton]}
-                      onPress={() => handleDelete(item.id)}
+                      style={[styles.actionButton, styles.editButton]}
+                      onPress={() => handleEdit(item)}
                     >
-                      <IconSymbol name="trash" size={16} color="#fff" />
-                      <ThemedText style={styles.buttonText}>删除</ThemedText>
+                      <IconSymbol name="pencil" size={16} color="#fff" />
+                      <ThemedText style={styles.buttonText}>编辑</ThemedText>
                     </TouchableOpacity>
-                  </View>
-                </ThemedView>
+                  )}
+
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDelete(item.id)}
+                  >
+                    <IconSymbol name="trash" size={16} color="#fff" />
+                    <ThemedText style={styles.buttonText}>删除</ThemedText>
+                  </TouchableOpacity>
+                </View>
               </ThemedView>
-            )
+            </ThemedView>
           )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}

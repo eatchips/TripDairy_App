@@ -115,7 +115,7 @@ export default function PublishScreen() {
 
     // 添加焦点监听器
     const unsubscribeFocus = navigation.addListener("focus", () => {
-      console.log("发布页面获得焦点，tripId:", tripId);
+      // console.log("发布页面获得焦点，tripId:", tripId);
       // 重置数据加载标记，允许重新加载数据
       dataLoaded.current = false;
     });
@@ -141,14 +141,14 @@ export default function PublishScreen() {
   useEffect(() => {
     // 只有当组件挂载且数据未加载过时才加载数据
     if (tripId && !dataLoaded.current && isMounted.current) {
-      console.log("准备加载游记数据，tripId:", tripId);
+      // console.log("准备加载游记数据，tripId:", tripId);
 
       // 使用API获取游记详情
       const fetchTripDetail = async () => {
         try {
           setUploading(true); // 显示加载状态
           const response = await getTravelNoteDetail(tripId);
-          console.log("获取游记详情成功:", response);
+          // console.log("获取游记详情成功:", response);
 
           if (response && isMounted.current) {
             setTitle(response.title || "");
@@ -224,9 +224,9 @@ export default function PublishScreen() {
     } as any);
 
     try {
-      console.log("上传图片数据: ", formData);
+      // console.log("上传图片数据: ", formData);
       const response = await uploadImg(formData);
-      console.log("上传图片成功:", response);
+      // console.log("上传图片成功:", response);
       return response; // 返回上传后的图片URL
     } catch (error) {
       console.error("上传图片失败:", error);
@@ -236,7 +236,7 @@ export default function PublishScreen() {
 
   // 上传视频
   const handleVideoUpload = async (videoUri: string) => {
-    console.log("开始上传视频:", videoUri);
+    // console.log("开始上传视频:", videoUri);
     if (!videoUri) return null;
 
     const formData = new FormData();
@@ -252,9 +252,9 @@ export default function PublishScreen() {
 
     try {
       // 增加超时时间，视频上传需要更长时间
-      console.log("上传视频数据: ", formData);
+      // console.log("上传视频数据: ", formData);
       const response = await uploadVideo(formData);
-      console.log("上传视频成功，完整响应:", JSON.stringify(response));
+      // console.log("上传视频成功，完整响应:", JSON.stringify(response));
       return response.path; // 使用response.path
     } catch (error) {
       console.error("上传视频失败，详细错误:", error);
@@ -283,7 +283,7 @@ export default function PublishScreen() {
 
   // 选择视频
   const pickVideo = async () => {
-    console.log("开始选择视频");
+    // console.log("开始选择视频");
     if (video) {
       Alert.alert("提示", "只能上传一个视频，请先删除现有视频");
       return;
@@ -295,10 +295,10 @@ export default function PublishScreen() {
       aspect: [16, 9],
       quality: 0.8,
     });
-    console.log("选择视频结果:", result);
+    // console.log("选择视频结果:", result);
     if (!result.canceled) {
       const videoUri = result.assets[0].uri;
-      console.log("选择的视频URI:", videoUri);
+      // console.log("选择的视频URI:", videoUri);
       setVideo(videoUri);
       generateThumbnail(videoUri);
     }
@@ -344,14 +344,14 @@ export default function PublishScreen() {
       Alert.alert("提示", "请先登录");
       return;
     }
-  
+
     if (!validateForm()) return;
-  
+
     setUploading(true);
-  
+
     // 用于存储已上传资源的URL，以便在失败时清理
     const uploadedResources = [];
-  
+
     try {
       // 逐个上传图片，而不是使用Promise.all
       const uploadedImages = [];
@@ -360,7 +360,7 @@ export default function PublishScreen() {
           const imgUrl = await handleImageUpload(img);
           if (imgUrl) {
             uploadedImages.push(imgUrl);
-            uploadedResources.push({ type: 'image', url: imgUrl });
+            uploadedResources.push({ type: "image", url: imgUrl });
           }
         } catch (error) {
           console.error("上传图片失败:", error);
@@ -368,21 +368,21 @@ export default function PublishScreen() {
           throw new Error("图片上传失败，请重试");
         }
       }
-  
+
       // 上传视频（如果有）
       let videoUrl = null;
       if (video) {
         try {
           videoUrl = await handleVideoUpload(video);
           if (videoUrl) {
-            uploadedResources.push({ type: 'video', url: videoUrl });
+            uploadedResources.push({ type: "video", url: videoUrl });
           }
         } catch (error) {
           console.error("上传视频失败:", error);
           throw new Error("视频上传失败，请重试");
         }
       }
-  
+
       // 发布游记
       const travelNoteData = {
         id: id, // 如果是编辑模式，会有id
@@ -392,9 +392,9 @@ export default function PublishScreen() {
         openid: user.id,
         videoUrl,
       };
-  
+
       await publishTravelNote(travelNoteData as any);
-  
+
       // 清空所有表单内容
       setTitle("");
       setContent("");
@@ -402,13 +402,13 @@ export default function PublishScreen() {
       setVideo(null);
       setVideoThumbnail(null);
       setIsEditing(false);
-  
+
       Alert.alert("成功", "游记发布成功，等待审核", [
         { text: "确定", onPress: () => router.back() },
       ]);
     } catch (error) {
       console.error("发布游记失败:", error);
-      
+
       // 清理已上传的资源
       if (uploadedResources.length > 0) {
         try {
@@ -417,21 +417,21 @@ export default function PublishScreen() {
           console.error("清理上传资源失败:", cleanupError);
         }
       }
-      
+
       Alert.alert("错误", `发布失败: ${error.message || "请稍后重试"}`);
     } finally {
       setUploading(false);
     }
   };
-  
+
   // 清理已上传的资源
   const cleanupUploadedResources = async (resources) => {
     // 这里需要实现后端API来删除已上传的资源
     for (const resource of resources) {
       try {
-        if (resource.type === 'image') {
+        if (resource.type === "image") {
           await deleteUploadedImage(resource.url);
-        } else if (resource.type === 'video') {
+        } else if (resource.type === "video") {
           await deleteUploadedVideo(resource.url);
         }
       } catch (error) {
@@ -465,16 +465,16 @@ export default function PublishScreen() {
     // 调用流式润色API
     polishControlRef.current = polishTextStream(content, "旅游日记", {
       onOriginal: (text) => {
-        console.log("原始文本:", text);
+        // console.log("原始文本:", text);
       },
       onChunk: (chunk, fullText) => {
-        console.log("收到新内容:", chunk);
-        console.log("当前完整文本:", fullText);
-        console.log("设置polishProgress前的状态:", polishProgress);
+        // console.log("收到新内容:", chunk);
+        // console.log("当前完整文本:", fullText);
+        // console.log("设置polishProgress前的状态:", polishProgress);
         setPolishProgress(fullText);
       },
       onComplete: (fullText) => {
-        console.log("润色完成:", fullText);
+        // console.log("润色完成:", fullText);
         setContent(fullText);
         setIsPolishing(false);
         setPolishProgress("");
