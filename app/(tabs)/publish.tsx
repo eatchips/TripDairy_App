@@ -338,28 +338,51 @@ export default function PublishScreen() {
   };
 
   // 发布游记
+  // 发布游记
   const handlePublish = async () => {
     if (!isLoggedIn || !user) {
       Alert.alert("提示", "请先登录");
       return;
     }
-
+  
     if (!validateForm()) return;
-
+  
     setUploading(true);
-
+  
+    // 用于存储已上传资源的URL，以便在失败时清理
+    const uploadedResources = [];
+  
     try {
-      // 上传图片
-      const uploadedImages = await Promise.all(
-        images.map((img) => handleImageUpload(img))
-      );
-
+      // 逐个上传图片，而不是使用Promise.all
+      const uploadedImages = [];
+      for (const img of images) {
+        try {
+          const imgUrl = await handleImageUpload(img);
+          if (imgUrl) {
+            uploadedImages.push(imgUrl);
+            uploadedResources.push({ type: 'image', url: imgUrl });
+          }
+        } catch (error) {
+          console.error("上传图片失败:", error);
+          // 抛出错误，触发清理流程
+          throw new Error("图片上传失败，请重试");
+        }
+      }
+  
       // 上传视频（如果有）
       let videoUrl = null;
       if (video) {
-        videoUrl = await handleVideoUpload(video);
+        try {
+          videoUrl = await handleVideoUpload(video);
+          if (videoUrl) {
+            uploadedResources.push({ type: 'video', url: videoUrl });
+          }
+        } catch (error) {
+          console.error("上传视频失败:", error);
+          throw new Error("视频上传失败，请重试");
+        }
       }
-
+  
       // 发布游记
       const travelNoteData = {
         id: id, // 如果是编辑模式，会有id
@@ -369,9 +392,9 @@ export default function PublishScreen() {
         openid: user.id,
         videoUrl,
       };
-
+  
       await publishTravelNote(travelNoteData as any);
-
+  
       // 清空所有表单内容
       setTitle("");
       setContent("");
@@ -379,15 +402,41 @@ export default function PublishScreen() {
       setVideo(null);
       setVideoThumbnail(null);
       setIsEditing(false);
-
+  
       Alert.alert("成功", "游记发布成功，等待审核", [
         { text: "确定", onPress: () => router.back() },
       ]);
     } catch (error) {
       console.error("发布游记失败:", error);
-      Alert.alert("错误", "发布失败，请稍后重试");
+      
+      // 清理已上传的资源
+      if (uploadedResources.length > 0) {
+        try {
+          await cleanupUploadedResources(uploadedResources);
+        } catch (cleanupError) {
+          console.error("清理上传资源失败:", cleanupError);
+        }
+      }
+      
+      Alert.alert("错误", `发布失败: ${error.message || "请稍后重试"}`);
     } finally {
       setUploading(false);
+    }
+  };
+  
+  // 清理已上传的资源
+  const cleanupUploadedResources = async (resources) => {
+    // 这里需要实现后端API来删除已上传的资源
+    for (const resource of resources) {
+      try {
+        if (resource.type === 'image') {
+          await deleteUploadedImage(resource.url);
+        } else if (resource.type === 'video') {
+          await deleteUploadedVideo(resource.url);
+        }
+      } catch (error) {
+        console.error(`删除${resource.type}失败:`, error);
+      }
     }
   };
 
