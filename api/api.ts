@@ -1,8 +1,10 @@
 import { service } from "@/utils/request";
 import { fetch as fetchAPI } from 'react-native-fetch-api';
 // 获取首页游记列表
-export const getTravelNotes = () => {
-  return service.get("/getTravelNotes");
+export const getTravelNotes = (page: number = 1, pageSize: number = 10) => {
+  return service.get("/getTravelNotes", {
+    params: { page, pageSize }
+  });
 }
 
 // 获取游记详情
@@ -91,9 +93,9 @@ export const updateAvatar = (openid: string, avatarUrl: string) => {
 }
 
 // 搜索游记
-export const searchTravelNotes = (title: string) => {
+export const searchTravelNotes = (title: string, page: number = 1, pageSize: number = 10) => {
   return service.get("/searchTravelNotes", {
-    params: { title }
+    params: { title, page, pageSize }
   });
 }
 

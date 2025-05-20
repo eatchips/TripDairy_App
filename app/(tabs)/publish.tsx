@@ -63,6 +63,27 @@ import { useUserStore } from "@/store/userStore";
 //   },
 // ];
 
+//创建流式文本组件
+// const SteamingText = ({ text, style }) => {
+//   const textRef = useRef(null);
+
+//   useEffect(() => {
+//     if (textRef.current) {
+//       textRef.current.setNativeProps({ text });
+//     }
+//   }, [text]);
+
+//   return (
+//     <TextInput
+//       ref={textRef}
+//       style={style}
+//       multiline
+//       editable={false}
+//       value={text}
+//     />
+//   );
+// };
+
 // 在组件内部添加状态和API调用
 export default function PublishScreen() {
   const router = useRouter();
@@ -210,6 +231,8 @@ export default function PublishScreen() {
 
   // 上传图片
   const handleImageUpload = async (imageUri: string) => {
+    console.log("开始上传图片:", imageUri);
+    console.time("图片上传耗时");
     if (!imageUri) return null;
 
     const formData = new FormData();
@@ -226,17 +249,22 @@ export default function PublishScreen() {
     try {
       // console.log("上传图片数据: ", formData);
       const response = await uploadImg(formData);
+
       // console.log("上传图片成功:", response);
-      return response; // 返回上传后的图片URL
+      return response.path; // 返回上传后的图片URL
     } catch (error) {
       console.error("上传图片失败:", error);
       throw error;
+    } finally {
+      console.timeEnd("图片上传耗时"); // 确保始终执行
     }
   };
 
   // 上传视频
   const handleVideoUpload = async (videoUri: string) => {
     // console.log("开始上传视频:", videoUri);
+    console.log("开始上传视频:", videoUri);
+    console.time("视频上传耗时");
     if (!videoUri) return null;
 
     const formData = new FormData();
@@ -259,6 +287,8 @@ export default function PublishScreen() {
     } catch (error) {
       console.error("上传视频失败，详细错误:", error);
       throw error;
+    } finally {
+      console.timeEnd("视频上传耗时"); // 确保始终执行
     }
   };
 
@@ -556,10 +586,10 @@ export default function PublishScreen() {
             <TouchableOpacity
               style={[
                 styles.polishButton,
-                isPolishing && styles.polishButtonDisabled,
+                (isPolishing || uploading) && styles.polishButtonDisabled,
               ]}
               onPress={handlePolishText}
-              disabled={isPolishing}
+              disabled={isPolishing || uploading}
             >
               <ThemedText style={styles.polishButtonText}>
                 {isPolishing ? "润色中..." : "文本润色"}
@@ -580,13 +610,17 @@ export default function PublishScreen() {
               <View key={index} style={styles.imageContainer}>
                 <Image source={{ uri }} style={styles.image} />
                 <TouchableOpacity
-                  style={styles.removeButton}
+                  style={[
+                    styles.removeButton,
+                    uploading && styles.buttonDisabled,
+                  ]}
                   onPress={() => removeImage(index)}
+                  disabled={uploading || isPolishing}
                 >
                   <IconSymbol
                     name="xmark.circle.fill"
                     size={24}
-                    color="#ff4d4f"
+                    color={uploading || isPolishing ? "#ccc" : "#ff4d4f"}
                   />
                 </TouchableOpacity>
               </View>
@@ -594,13 +628,21 @@ export default function PublishScreen() {
 
             {images.length < 9 && (
               <TouchableOpacity
-                style={styles.addImageButton}
+                style={[
+                  styles.addImageButton,
+                  (uploading || isPolishing) && styles.buttonDisabled,
+                ]}
                 onPress={pickImage}
+                disabled={uploading || isPolishing}
               >
                 <IconSymbol
                   name="plus"
                   size={40}
-                  color={Colors[colorScheme ?? "light"].tabIconDefault}
+                  color={
+                    uploading || isPolishing
+                      ? "#ccc"
+                      : Colors[colorScheme ?? "light"].tabIconDefault
+                  }
                 />
               </TouchableOpacity>
             )}
@@ -629,31 +671,50 @@ export default function PublishScreen() {
                 </View>
               )}
               <TouchableOpacity
-                style={styles.removeButton}
+                style={[
+                  styles.removeButton,
+                  (uploading || isPolishing) && styles.buttonDisabled,
+                ]}
                 onPress={removeVideo}
+                disabled={uploading || isPolishing}
               >
                 <IconSymbol
                   name="xmark.circle.fill"
                   size={24}
-                  color="#ff4d4f"
+                  color={uploading || isPolishing ? "#ccc" : "#ff4d4f"}
                 />
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.playButton}
+                style={[
+                  styles.playButton,
+                  (uploading || isPolishing) && styles.buttonDisabled,
+                ]}
                 onPress={() => {
                   // 这里应该是播放视频的逻辑
                   Alert.alert("提示", "视频播放功能尚未实现");
                 }}
+                disabled={uploading || isPolishing}
               >
                 <IconSymbol name="play.fill" size={30} color="#fff" />
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity style={styles.addVideoButton} onPress={pickVideo}>
+            <TouchableOpacity
+              style={[
+                styles.addVideoButton,
+                (uploading || isPolishing) && styles.buttonDisabled,
+              ]}
+              onPress={pickVideo}
+              disabled={uploading || isPolishing}
+            >
               <IconSymbol
                 name="video.badge.plus"
                 size={40}
-                color={Colors[colorScheme ?? "light"].tabIconDefault}
+                color={
+                  uploading || isPolishing
+                    ? "#ccc"
+                    : Colors[colorScheme ?? "light"].tabIconDefault
+                }
               />
               <ThemedText>添加视频</ThemedText>
             </TouchableOpacity>
@@ -807,6 +868,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   loginPrompt: {
     flex: 1,

@@ -1,149 +1,141 @@
+import MasonryList from "@react-native-seoul/masonry-list"; // 更换瀑布流组件
 import { Image } from "expo-image";
-import React from "react";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  FlatList,
+  ActivityIndicator,
+  Dimensions,
+  RefreshControl,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  useColorScheme,
   View,
 } from "react-native";
 
+import { getTravelNotes, searchTravelNotes } from "@/api/api";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 
-// 在文件顶部导入API
-import { getTravelNotes, searchTravelNotes } from "@/api/api";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+// 获取屏幕宽度
+const { width } = Dimensions.get("window");
+const COLUMN_WIDTH = width / 2 - 15; // 两列布局，减去边距
 
-// 模拟游记数据
-const MOCK_TRIPS = [
-  {
-    id: "1",
-    title: "美丽的杭州西湖之旅",
-    coverImage: "https://picsum.photos/id/1018/800/600",
-    author: {
-      id: "101",
-      name: "旅行者小明",
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-    },
-  },
-  {
-    id: "2",
-    title: "北京故宫一日游",
-    coverImage: "https://picsum.photos/id/1015/800/600",
-    author: {
-      id: "102",
-      name: "摄影师小红",
-      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-    },
-  },
-];
-
-// 游记卡片组件
-interface TripCardProps {
-  trip: {
-    _id: string;
-    title: string;
-    imgList: string[];
-    userInfo: {
-      _id: string;
-      username: string;
-      avatar: string;
-    };
-  };
-  onPress: () => void;
-}
-
-function TripCard({ trip, onPress }: TripCardProps) {
-  const [imageReady, setImageReady] = useState(false);
-  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    // 检查imgList是否存在且有元素
-    if (trip.imgList && trip.imgList.length > 0) {
-      try {
-        // console.log("处理图片URL");
-        const imageUrl = trip.imgList[0].replace("localhost", "10.0.2.2");
-        setCoverImageUrl(imageUrl);
-      } catch (error) {
-        console.error("处理图片URL时出错:", error);
-        setCoverImageUrl(null);
-      }
-    }
-  }, [trip.imgList]);
-
-  const handleImageLoad = () => {
-    setImageReady(true);
-  };
-
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      {coverImageUrl ? (
-        <Image
-          source={{ uri: coverImageUrl }}
-          style={styles.cardImage}
-          onLoad={handleImageLoad}
-        />
-      ) : null}
-      <ThemedText type="defaultSemiBold" style={styles.cardTitle}>
-        {trip.title}
-      </ThemedText>
-      <View style={styles.authorContainer}>
-        <Image source={{ uri: trip.userInfo.avatar }} style={styles.avatar} />
-        <ThemedText>{trip.userInfo.username}</ThemedText>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// 在组件内部添加状态和API调用
-export default function TabOneScreen() {
+export default function HomeScreen() {
   const [travelNotes, setTravelNotes] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const colorScheme = useColorScheme();
   const [searchQuery, setSearchQuery] = useState("");
+  const colorScheme = useColorScheme();
+
+  // 分页相关状态
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageSize = 10;
 
   // 获取游记列表
-  const fetchTravelNotes = async () => {
-    // console.log("获取游记");
-    setLoading(true);
+  const fetchTravelNotes = async (refresh = false) => {
+    if (refresh) {
+      setRefreshing(true);
+      setPage(1);
+    } else if (!loadingMore) {
+      setLoading(true);
+    }
     setError("");
 
     try {
-      const response = await getTravelNotes();
+      const response = await getTravelNotes(refresh ? 1 : page, pageSize);
+
       if (response) {
-        // console.log("获取游记成功", response);
-        setTravelNotes(response as any);
+        console.log(response);
+        // 处理分页信息
+        const { data, pagination } = response;
+
+        // 判断是否还有更多数据
+        setHasMore(pagination.currentPage < pagination.totalPages);
+
+        // 更新数据
+        if (refresh || page === 1) {
+          setTravelNotes(data);
+        } else {
+          setTravelNotes((prev) => [...prev, ...data]);
+        }
       }
     } catch (err) {
       console.error("获取游记列表失败:", err);
       setError("获取游记列表失败，请稍后重试");
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
     }
+  };
+
+  // 加载更多数据
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore && !loading && !refreshing) {
+      setLoadingMore(true);
+      setPage((prev) => prev + 1);
+
+      // 如果有搜索查询，则加载更多搜索结果，否则加载普通游记
+      if (searchQuery.trim()) {
+        // 直接在这里处理搜索结果的加载更多
+        searchTravelNotes(searchQuery, page + 1, pageSize)
+          .then((response) => {
+            if (response) {
+              const { data, pagination } = response;
+
+              // 判断是否还有更多数据
+              setHasMore(pagination.currentPage < pagination.totalPages);
+
+              // 追加数据
+              setTravelNotes((prev) => [...prev, ...data]);
+            }
+          })
+          .catch((err) => {
+            console.error("加载更多搜索结果失败:", err);
+            setError("加载更多搜索结果失败，请稍后重试");
+          })
+          .finally(() => {
+            setLoadingMore(false);
+          });
+      } else {
+        fetchTravelNotes(false);
+      }
+    }
+  };
+
+  // 下拉刷新
+  const handleRefresh = () => {
+    fetchTravelNotes(true);
   };
 
   // 搜索游记
   const handleSearch = async () => {
-    // console.log("搜索游记内容：", searchQuery);
     if (!searchQuery.trim()) {
-      fetchTravelNotes();
+      fetchTravelNotes(true);
       return;
     }
 
     setLoading(true);
     setError("");
+    setPage(1); // 重置页码
 
     try {
-      const response = await searchTravelNotes(searchQuery);
-      // console.log("搜索游记成功", response);
+      const response = await searchTravelNotes(searchQuery, 1, pageSize);
       if (response) {
-        setTravelNotes(response);
+        console.log(response);
+        const { data, pagination } = response;
+
+        // 判断是否还有更多数据
+        setHasMore(pagination.currentPage < pagination.totalPages);
+
+        // 更新数据
+        setTravelNotes(data);
       }
     } catch (err) {
       console.error("搜索游记失败:", err);
@@ -158,7 +150,62 @@ export default function TabOneScreen() {
     fetchTravelNotes();
   }, []);
 
-  // 在组件中添加搜索框和加载状态
+  // 将游记数据转换为瀑布流需要的格式
+  const masonryData = travelNotes.map((item) => {
+    // 根据标题长度动态计算高度
+    const titleLength = item.title ? item.title.length : 0;
+    // 基础高度 + 标题每10个字符增加20高度
+    const dynamicHeight = 250 + Math.min(80, Math.floor(titleLength / 10) * 20);
+
+    return {
+      id: item._id,
+      data: item,
+      uri:
+        item.imgList && item.imgList.length > 0
+          ? item.imgList[0].replace("localhost", "10.0.2.2")
+          : "https://via.placeholder.com/300",
+      dimensions: { width: COLUMN_WIDTH, height: dynamicHeight },
+    };
+  });
+
+  // 渲染瀑布流项目
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.cardContainer}
+      onPress={() => router.push(`/trip/${item.data._id}`)}
+    >
+      <View style={styles.card}>
+        <Image
+          source={{ uri: item.uri }}
+          style={[styles.cardImage, { height: item.dimensions.height * 0.6 }]}
+          contentFit="cover"
+        />
+        <View style={styles.cardContent}>
+          <ThemedText
+            type="defaultSemiBold"
+            numberOfLines={2}
+            style={styles.cardTitle}
+          >
+            {item.data.title}
+          </ThemedText>
+          <View style={styles.authorContainer}>
+            <Image
+              source={{
+                uri: item.data.userInfo?.avatar
+                  ? item.data.userInfo.avatar.replace("localhost", "10.0.2.2")
+                  : "https://via.placeholder.com/40",
+              }}
+              style={styles.avatar}
+            />
+            <ThemedText style={styles.authorName}>
+              {item.data.userInfo?.username || "游客"}
+            </ThemedText>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
@@ -183,7 +230,7 @@ export default function TabOneScreen() {
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery("");
-                fetchTravelNotes(); // 清除搜索内容后刷新游记列表
+                fetchTravelNotes(true);
               }}
               style={styles.clearButton}
             >
@@ -200,22 +247,72 @@ export default function TabOneScreen() {
         </View>
       </ThemedView>
 
-      <FlatList
-        data={travelNotes}
-        renderItem={({ item }) => (
-          <TripCard
-            trip={item}
-            onPress={() => {
-              // console.log("跳转到游记详情，ID:", item._id); // 添加日志
-              router.push(`/trip/${item._id}`);
-            }}
+      {loading && !loadingMore && !refreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator
+            size="large"
+            color={Colors[colorScheme ?? "light"].tint}
           />
-        )}
-        keyExtractor={(item) => item._id}
-        numColumns={2}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
+          <ThemedText style={styles.loadingText}>加载中...</ThemedText>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <IconSymbol
+            name="exclamationmark.triangle"
+            size={60}
+            color="#ff4d4f"
+          />
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => fetchTravelNotes(true)}
+          >
+            <ThemedText style={styles.retryButtonText}>重试</ThemedText>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <MasonryList
+          data={masonryData}
+          keyExtractor={(item: { id: any }) => item.id}
+          numColumns={2}
+          renderItem={renderItem}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors[colorScheme ?? "light"].tint]}
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator size="small" color="#999" />
+                <ThemedText style={styles.loadingMoreText}>
+                  加载更多...
+                </ThemedText>
+              </View>
+            ) : !hasMore && masonryData.length > 0 ? (
+              <ThemedText style={styles.noMoreText}>没有更多游记了</ThemedText>
+            ) : null
+          }
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.emptyContainer}>
+                <IconSymbol
+                  name="photo.on.rectangle.angled"
+                  size={60}
+                  color="#ccc"
+                />
+                <ThemedText style={styles.emptyText}>暂无游记</ThemedText>
+              </View>
+            ) : null
+          }
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </ThemedView>
   );
 }
@@ -223,15 +320,15 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
   },
   header: {
-    padding: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
   },
   headerTitle: {
-    marginBottom: 16,
     fontSize: 24,
+    marginBottom: 16,
   },
   searchContainer: {
     flexDirection: "row",
@@ -239,7 +336,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     borderRadius: 8,
     paddingHorizontal: 10,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   searchIcon: {
     marginRight: 8,
@@ -249,15 +346,28 @@ const styles = StyleSheet.create({
     height: 40,
     fontSize: 16,
   },
+  clearButton: {
+    padding: 5,
+  },
+  searchButton: {
+    backgroundColor: Colors.light.tint,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  searchButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
   listContainer: {
-    padding: 8,
-    paddingHorizontal: 4, // 减小水平内边距，让两个卡片之间的间距更合理
+    paddingHorizontal: 8,
+    paddingBottom: 20,
+  },
+  cardContainer: {
+    padding: 6,
   },
   card: {
-    flex: 1, // 保持flex: 1以便在同一行时平均分配空间
-    margin: 4,
-    maxWidth: "48%", // 设置最大宽度为容器的48%
-    minWidth: "48%", // 设置最小宽度，确保两列布局的一致性
     borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#fff",
@@ -265,22 +375,23 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   cardImage: {
     width: "100%",
-    height: 120, // 调整图片高度，使其在小尺寸下更合适
-    backgroundColor: "#f0f0f0", // 添加背景色，在图片加载前显示
+    minHeight: 150,
+  },
+  cardContent: {
+    padding: 12,
   },
   cardTitle: {
-    padding: 8,
     fontSize: 16,
+    marginBottom: 8,
   },
   authorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 8,
-    paddingTop: 0,
+    marginTop: 8,
   },
   avatar: {
     width: 24,
@@ -288,20 +399,69 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 8,
   },
-  searchButton: {
-    backgroundColor: "#0a7ea4",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  searchButtonText: {
-    color: "#FFFFFF",
+  authorName: {
     fontSize: 14,
+    color: "#666",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 10,
+    marginBottom: 20,
+    fontSize: 16,
+    color: "#ff4d4f",
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: Colors.light.tint,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: "#fff",
     fontWeight: "600",
   },
-  clearButton: {
-    padding: 4,
-    marginRight: 4,
+  loadingMore: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  loadingMoreText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: "#999",
+  },
+  noMoreText: {
+    textAlign: "center",
+    padding: 16,
+    fontSize: 14,
+    color: "#999",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+    height: 300,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#999",
   },
 });
